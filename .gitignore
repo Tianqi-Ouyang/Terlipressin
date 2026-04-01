@@ -9,8 +9,8 @@
 
 # Quarto
 docs/.quarto/
+docs/_site/
 *_cache/
-*_files/
 *.knit.md
 
 # Data (large files, keep in Dropbox)
