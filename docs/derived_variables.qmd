@@ -1,0 +1,216 @@
+---
+title: "Derived Variables"
+author: "Tianqi Ouyang"
+date: last-modified
+---
+
+All variables computed in `Tables.Rmd` (and replicated in `revision 0311.Rmd`) from the REDCap source data.
+
+## Identifiers & Filtering
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `id` | Internal row ID per center | `paste0("{center}_", row_number())` |
+| `Discont_Day` | Day terlipressin discontinued (0--13) | First day where `discont_terli_dayN == 1` via `qc_check()` |
+| `center_id` | Center abbreviation | `str_extract(subjectid, "^[^-]+")` |
+| `center` | Numeric center grouping (factor, 1--10) | BID/MGH/Yale=1, PEN=2, OCH=3, BSW=4, CPM/CSF/UNM=5, Mayo/MCM/NWM=7, MMC=9, CCF/INU=10 |
+
+## Baseline Creatinine & eGFR
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `baseline_scr_calculated` | Estimated SCr from eGFR=75 | Inverse CKD-EPI 2021 via numerical optimization (`optimize()`) |
+| `baseline_scr_new` | Best available baseline SCr | (1) `baseline_scr` if `days_to_admit != 0`, else (2) `baseline_scr_120to365_value`, else (3) `min(calculated, scr_admit)` |
+| `baseline_scr_new_2` | Strict baseline (no calculated fallback) | Only options (1) and (2) above |
+| `eGFR` | Estimated GFR | CKD-EPI 2021 from `baseline_scr_new_2` |
+| `ckd_baseline` | Baseline CKD | `eGFR < 60` &rarr; 1 |
+
+## AKI Staging
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `ratio` | SCr ratio at terli initiation | `scr_terli_day0 / baseline_scr_new` |
+| `delta` | SCr delta at terli initiation | `scr_terli_day0 - baseline_scr_new` |
+| `akin` | AKIN stage at initiation | 1: ratio 1.5--2 OR delta > 0.3; 2: ratio 2--3; 3: ratio &ge; 3 OR SCr &ge; 4 |
+| `discont_ratio` | SCr ratio at discontinuation | `lowest_creatinine / baseline_scr_new` |
+| `discont_delta` | SCr delta at discontinuation | `lowest_creatinine - baseline_scr_new` |
+| `discont_aki_stage` | AKIN stage at discontinuation | Same staging as `akin`, using `lowest_creatinine` |
+| `difference` | AKI stage change | `akin - discont_aki_stage` |
+
+## Clinical Scores
+
+### Child-Pugh Score
+
+| Variable | Description |
+|:---------|:-----------|
+| `child_pugh_score` | Sum of 5 components (5--15) |
+
+::: {.callout-note collapse="true"}
+## Component scoring
+
+| Component | 1 point | 2 points | 3 points |
+|:----------|:--------|:---------|:---------|
+| Bilirubin (mg/dL) | < 2 | 2--3 | > 3 |
+| Albumin (g/dL) | > 3.5 | 2.8--3.5 | < 2.8 |
+| INR | < 1.7 | 1.7--2.3 | > 2.3 |
+| Ascites | Absent (1) | Slight (2) | Moderate (3) |
+| HE grade | None (0) | Grade 1--2 | Grade 3--4 |
+:::
+
+### CLIF-C Score
+
+| Variable | Description |
+|:---------|:-----------|
+| `clif_c_score` | `10 * (0.33 * organ_score + 0.04 * age + 0.63 * log(WBC) - 2)` |
+| `clif_c_score_new` | Median-imputed (missing &rarr; population median) |
+
+::: {.callout-note collapse="true"}
+## Organ sub-scores
+
+| Organ | 1 point | 2 points | 3 points |
+|:------|:--------|:---------|:---------|
+| Liver (T.bili mg/dL) | < 6 | 6--12 | &ge; 12 |
+| Kidney (SCr mg/dL) | < 2 | 2--3.5 | &ge; 3.5 |
+| Brain (HE grade) | 1 | 2--3 | 4--5 |
+| Coagulation (INR) | < 2 | 2--2.5 | &ge; 2.5 |
+| Circulation | MAP &ge; 70, no pressors | MAP < 70, no pressors | Any pressors |
+| Respiratory (SpO2/FiO2) | > 357 | 214--357 | &le; 214 |
+:::
+
+### ACLF Grade & Organ Failures
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `aclf_grade` | Organ failure count (capped at 3) | Count of organ failures below |
+| `organ_failure_sum` | Total organ failure count (uncapped) | Sum of 6 binary flags |
+| `liver_f` | Liver failure | `bili_terli_day0 >= 6` |
+| `brain_f` | Brain failure | `he_terli_day0 > 1` |
+| `coagulation_f` | Coagulation failure | `inr_terli_day0 >= 2` |
+| `circulatory_f` | Circulatory failure | `map_terli_day0_time0 < 70` |
+| `respiratory_f` | Respiratory failure | `spo2_terli_day0 / fio2_terli_day0 <= 357` |
+| `kidney_f` | Kidney failure | `scr_terli_day0 >= 1.5` |
+
+### MELD Scores
+
+| Variable | Description | Formula |
+|:---------|:-----------|:--------|
+| `day0_meld` | MELD at Day 0 | `9.57*log(Cr) + 3.78*log(bili) + 11.20*log(INR) + 6.43`; Cr capped 1--4 |
+| `day0_meld_na` | MELD-Na at Day 0 | MELD + sodium correction (Na capped 125--137); applied only if MELD > 11 |
+| `day0_meld_3` | MELD 3.0 at Day 0 | Includes sex factor (+1.33 if female), albumin, sodium, and bilirubin-sodium / albumin-Cr interactions |
+| `admit_meld` | MELD at admission | Same as day0_meld using admission labs |
+| `admit_meld_na` | MELD-Na at admission | |
+| `admit_meld_3` | MELD 3.0 at admission | Median-imputed if missing |
+| `admit_meld_3_raw` | MELD 3.0 raw (pre-imputation) | |
+
+## Outcome Variables
+
+### HRS Response
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `lowest_creatinine` | Lowest SCr around discontinuation | `min(last_scr_2, last_scr, scr_day1_post_terli)` |
+| `last_scr` | SCr on discontinuation day | `scr_terli_day{Discont_Day}` |
+| `last_scr_2` | SCr day before discontinuation | `scr_terli_day{Discont_Day - 1}` |
+| `HRS_reversal_new` | **Primary outcome** | `lowest_creatinine <= 1.5 AND (scr_day0 - lowest_creatinine) >= 0.3` |
+| `hrs_responders` | Response category | 0 = No stage improvement, 1 = Partial (improved but SCr > 0.3 above baseline), 2 = Complete (&le; 0.3 above baseline) |
+| `hrs_responders_cat_2` | Binary responder | 0 = Non-responder, 1 = Any response |
+| `hrs_rebound` | SCr rebound post-terli | `scr_day1_post_terli - last_scr >= 0.3` |
+
+### Survival / Competing Risk
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `dc_death_status` | In-hospital death | `disposition == 5` |
+| `after_discharge_90days_death_status` | Post-discharge death | `dc_death_90days == 1` |
+| `time_to_death` | Time to death from terli initiation | In-hospital: `days_to_discharge`; post-discharge: `days_to_discharge + dc_days_to_death`; lost: `+ days_to_lost_to_followup`; minus `days_to_terli_initiation_day0` |
+| `time_to_death_status` | Binary death | 1 = died, 0 = alive |
+| `time_to_death_90days` | Time capped at 90 days | `min(time_to_death, 90)` |
+| `time_to_death_status_90days` | 90-day death status | 1 if died &le; 90 days |
+| `time_to_death_90days_cmp` | **Competing risk time** | `min(time_to_death_90days, time_to_transplant_90days)` |
+| `time_to_death_status_90days_cmp` | **Competing risk status** | 0 = Censored, 1 = Death, 2 = Transplant |
+
+### Transplant
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `transplant_lt` | LT timing category | 1 = During hospitalization (LT or SLKT), 2 = Within 90d post-DC, 3 = After 90d (1yr), 0 = None |
+| `transplant_slkt` | SLKT indicator | `slkt_during_hospital == 1 OR dc_lt_90days == 2 OR lt_type_1yr == 2` |
+| `transplant_lt_status` | Binary transplant for competing risk | 0 or 2 |
+| `time_to_transplant` | Days from terli to transplant | |
+| `time_to_transplant_cmp` | Transplant time (999 if none) | |
+| `transplant_outcome` | 90-day transplant binary | |
+| `listed_transplant` | Listed for transplant | `lt_eval == 2 OR lteval_listingstatus == 1` |
+
+## Treatment Course Variables
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `discont_reason_terli` | Reason at discontinuation day | `discont_reason_terli_day{Discont_Day}` |
+| `terli_ae_abdpain` | Abdominal pain AE | From discontinuation day |
+| `terli_ae_nausea` | Nausea AE | From discontinuation day |
+| `terli_ae_diarrhea` | Diarrhea AE | From discontinuation day |
+| `terli_ae_volover` | Volume overload AE | From discontinuation day |
+| `terli_ae_brady` | Bradycardia AE | From discontinuation day |
+| `terli_7` | Respiratory failure reason | `discont_reason_terli == 7` |
+| `terli_8` | Ischemic event reason | `discont_reason_terli == 8` |
+| `terli_ae_respfail` | Respiratory failure composite | `terli_7 == 1 OR terli_ae_volover == 1` |
+| `any_ae` | Any adverse event | Any AE flag == 1 |
+| `mean_map_day0` | Mean MAP on Day 0 | Average of 4 daily MAP time-point readings |
+| `dosechange_day` | First day of dose adjustment | First day (2--13) with `dosechange_terli_dayN == 1` |
+| `dosechange_status` | Any dose change | Binary: any change days 2--12 |
+| `time_to_dosechange` | Day of first dose change | |
+| `total_albumin` | Total albumin across treatment | `rowSums(albumintotal_terli_day0:day13)` |
+
+## Criteria / Exclusion Flags
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `criteria_1` | Discontinued day 1 with no dose | `total_terli_day1 == 0 AND discont_terli_day1 == 1` |
+| `criteria_2` | ACLF grade &ge; 3 | `aclf_grade >= 3` |
+| `criteria_3` | SCr &ge; 5 | `scr_terli_day0 >= 5` |
+| `criteria_4` | Respiratory compromise | `SpO2/FiO2 < 357` |
+| `criteria_5` | High MELD 3.0 | `admit_meld_3 > 35` |
+| `HRS_Criteria` | Any criteria 1--4 met | |
+| `HRS_criteria_3` | Criteria 2, 3, or 4 (without 1) | |
+| `HRS_criteria_meld` | Criteria 2--5 | |
+
+## Dose-Change Subgroups (revision 0311)
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `discont_before_day3` | Discontinued before day 3 | `Discont_Day < 3` |
+| `pc_change_before_day3` | Dose changed days 1--3, continued > day 3 | |
+| `pc_nochange_after_day3` | No change days 1--3, continued > day 3 | |
+| `pc_day3` | Discontinued exactly day 3 | `Discont_Day == 3` |
+
+## Other
+
+| Variable | Description | Logic |
+|:---------|:-----------|:------|
+| `fena` | Fractional excretion of sodium | `100 * (scr_admit * ua_na) / (sodium_admit * ua_cr)` |
+| `urine_pc` | Urine protein:creatinine ratio | `uaprotein_hrs / ua_cr_value_hrs` |
+| `race_2` | Binary race | White or missing &rarr; 1, else 0 |
+| `rrt_2` | RRT binary (need-not-candidate = 0) | `rrt == 2` recoded to 0 |
+| `bili_cal` | Bilirubin (coalesced) | `coalesce(bili_terli_day0, tbili_admit, mean)` |
+
+## Longitudinal Lab Tracking
+
+| Lab | Admission | AKI | Day 0--13 | Post-Terli | Follow-up |
+|:----|:----------|:----|:----------|:-----------|:----------|
+| **SCr** | `scr_admit` | `scr_aki` | `scr_terli_day0`--`13` | `scr_day1`--`14_post_terli` | `dc_scr`, `dc_scr30`, `60`, `90`, `scr_value_1yr` |
+| **T.Bili** | `tbili_admit` | `tbili_aki` | `bili_terli_day0`--`13` | -- | `dc_tbili` |
+| **INR** | `inr_admit` | `inr_aki` | `inr_terli_day0`--`13` | -- | `dc_inr` |
+| **Albumin** | `albumin_admit` | `albumin_aki` | `alb_terli_day0`--`13` | -- | `dc_albumin` |
+| **Sodium** | `sodium_admit` | `sodium_aki` | `na_terli_day0`--`13` | -- | `dc_sna` |
+| **Cystatin C** | `cystatinc_admit` | `cystatinc_aki` | `cystatinc_terli_day0`--`13` | -- | -- |
+
+## Multiple Imputation (new_request_0311)
+
+Predictive mean matching (PMM), m=20 imputations, 50 iterations.
+
+**Imputed predictors:** `sex_male`, `scr_admit`, `tbili_admit`, `sodium_admit`, `inr_admit`, `bili_terli_day0`, `he_terli_day0`, `inr_terli_day0`, `map_terli_day0_time0`, `fio2_terli_day0`, `spo2_terli_day0`, `scr_terli_day0`
+
+**Models fit:**
+
+- Logistic regression: `HRS_reversal_new ~ predictors` (pooled with Rubin's rules)
+- Fine-Gray competing risk: `Surv(time_to_death_90days_cmp, status) ~ predictors` (failcode=1 death, cencode=0)

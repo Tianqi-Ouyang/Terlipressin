@@ -1,0 +1,80 @@
+---
+title: "Project Summary"
+author: "Tianqi Ouyang"
+date: last-modified
+---
+
+## Overview
+
+The **HARMONY Terlipressin Registry** is a multi-center retrospective study of terlipressin use for hepatorenal syndrome-acute kidney injury (HRS-AKI). Data were collected from 15 centers via REDCap and analyzed in R.
+
+## Centers
+
+| Abbreviation | Institution |
+|:------------|:-----------|
+| BID | Beth Israel Deaconess Medical Center |
+| BSW | Baylor Scott & White |
+| CCF | Cleveland Clinic Foundation |
+| CPM | California Pacific Medical Center (Sutter) |
+| CSF | California -- San Francisco |
+| INU | Indiana University |
+| Mayo | Mayo Clinic (Rochester) |
+| MCM | Mayo Clinic (Minnesota, secondary site) |
+| MGH | Massachusetts General Hospital |
+| MMC | Montefiore Medical Center |
+| NWM | Northwestern Medicine |
+| OCH | Ochsner Health |
+| PEN | University of Pennsylvania |
+| UNM | University of New Mexico |
+| Yale | Yale University |
+
+## Data Pipeline
+
+```{mermaid}
+flowchart TD
+    A[15 REDCap CSVs<br/>Partners HealthCare Dropbox] --> B[Read & assign center IDs]
+    B --> C[Alphabetize columns<br/>Drop inconsistent vars]
+    C --> D[reorder_and_bind<br/>Merge all centers]
+    D --> E[qc_check<br/>Find Discont_Day & missing data]
+    E --> F[Remove excluded subjects<br/>34 removed, 8 re-treatment]
+    F --> G[Derive clinical scores<br/>Child-Pugh, CLIF-C, MELD]
+    G --> H[Compute outcomes<br/>HRS reversal, survival, transplant]
+    H --> I[final_master dataset]
+    I --> J[Table 1 / Stratified tables]
+    I --> K[Survival & competing risk models]
+    I --> L[Multiple imputation<br/>new_request_0311.Rmd]
+```
+
+## Repository Structure
+
+| File | Description |
+|:-----|:-----------|
+| `code/Tables.Rmd` | Main analysis (~1600 lines): data ingestion, QC, derived variables, Table 1, survival analysis |
+| `code/revision 0311.Rmd` | Revision: replicates pipeline, adds center grouping, dose-change categories, additional predictors |
+| `code/new_reqeust_0311.Rmd` | Multiple imputation (MICE m=20), logistic regression, Fine-Gray competing risk models |
+| `data/final_master_01282026.xlsx` | Cleaned final dataset |
+| `Terlipressin Database _ REDCap Code Book.pdf` | REDCap data dictionary (132 pages, 1500+ fields) |
+
+## Key Outcomes
+
+| Variable | Definition | Type |
+|:---------|:----------|:-----|
+| `HRS_reversal_new` | Lowest SCr &le; 1.5 AND (SCr day0 - lowest SCr) &ge; 0.3 | Binary (primary) |
+| `hrs_responders_cat_2` | Any AKI stage improvement | Binary |
+| `hrs_responders` | 0 = Non-responder, 1 = Partial, 2 = Complete | Categorical |
+| `time_to_death_90days_cmp` | Min(time to death, time to transplant), capped 90d | Time-to-event |
+| `time_to_death_status_90days_cmp` | 0 = Censored, 1 = Death, 2 = Transplant | Competing risk |
+
+## R Packages Used
+
+::: {.callout-note collapse="true"}
+## Full package list
+
+tidyverse, tableone, gtsummary, survival, survminer, readxl, writexl, xlsx, ggplot2, ggpubr, splines, lattice, mice, DescTools, finalfit, tidycmprsk, ggsurvfit, sqldf, table1, cobalt, riskRegression, prodlim, pammtools, adjustedCurves
+:::
+
+## Exclusion Criteria
+
+- **Removed subjects (n=34):** 7 BID-PTD patients, 24 MAYO patients (IDs 5--28), 3 MMC patients (IDs 005--007)
+- **Re-treatment subjects (n=8):** Separated into `subgroup_master` -- BID-005R1/R2, BID-013R1, MGH-001R1, MGH-014R1/R2, MGH-026R1, NWM-014R1
+- Patients without a determined `Discont_Day` are also excluded (`filter(!is.na(Discont_Day))`)

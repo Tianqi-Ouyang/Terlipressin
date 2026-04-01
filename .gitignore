@@ -1,0 +1,18 @@
+# OS
+.DS_Store
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# Quarto
+docs/_site/
+docs/.quarto/
+*_cache/
+*_files/
+*.knit.md
+
+# Data (large files, keep in Dropbox)
+# data/ is small enough to track

@@ -1,0 +1,734 @@
+---
+title: "Data Summary"
+author: "Tianqi Ouyang"
+date: last-modified
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    theme: cosmo
+    code-fold: true
+    self-contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Setup
+
+```{r libraries}
+library(tidyverse)
+library(tableone)
+library(writexl)
+library(gtsummary)
+library(survival)
+library(ggplot2)
+library(readxl)
+library(ggpubr)
+library(splines)
+library(xlsx)
+library(lattice)
+library(mice)
+library(DescTools)
+library(survminer)
+library(finalfit)
+library(tidycmprsk)
+library(ggsurvfit)
+library(sqldf)
+library(table1)
+library(cobalt)
+```
+
+# Data Import
+
+Read de-identified data from 15 centers. Each center's CSV is read, columns alphabetized, and a unique `id` assigned.
+
+```{r read-data}
+data_path <- "~/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data"
+
+pen  <- read_csv(file.path(data_path, "PEN/Harmony_DATA_2025-02-20_0757(sevda.aghayeva@pennmedicine.upenn.edu)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("pen_", row_number()))
+
+mmc  <- read_csv(file.path(data_path, "MMC/HepatorenalSyndromeA_DATA_2025-01-30_1528(pamejia@montefiore.org)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("mmc_", row_number()))
+
+csf  <- read_csv(file.path(data_path, "CSF/TerlipressinStudy_DATA_2025-03-20_1346_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("csf_", row_number()))
+
+unm  <- read_csv(file.path(data_path, "UNM/HRSHarmonyTerlipress_DATA_2025-02-10_2216(jteixeira@salud.unm.edu)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("unm_", row_number()))
+
+bid  <- read_csv(file.path(data_path, "BID/Data Export 2025.02.05(wyang8@bidmc.harvard.edu)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("bid_", row_number()))
+
+bsw  <- read_csv(file.path(data_path, "BSW/TerlipressinRegistry_DATA_2025-03-12_0744_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("bsw_", row_number()))
+
+ccf  <- read_csv(file.path(data_path, "CCF/HARMONY_ClevelandClinic_HRSData Updated_Queries 04FEB2025(mehkrio@ccf.org)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("ccf_", row_number()))
+
+cpm  <- read_csv(file.path(data_path, "CPM/HARMONYHRSFrederick_DATA_2025-03-03_1134(mary.thornton@sutterhealth.org)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("cpm_", row_number()))
+
+och  <- read_csv(file.path(data_path, "OCH/OCHHRSTerlipressinRe_DATA_2025-01-02_2259(gavin.skipper@ochsner.org)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("och_", row_number()))
+
+nwm  <- read_csv(file.path(data_path, "NWM/02282025 NWM Terli Data(anjana.rajan@nm.org)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("nwm_", row_number()))
+
+mgh  <- read_csv(file.path(data_path, "MGH/TerlipressinDatabase_DATA_2025-04-15_1219.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("mgh_", row_number()))
+
+yal  <- read_csv(file.path(data_path, "YAL/TerlipressinForHepat_DATA_2025-02-08_1107_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("yal_", row_number()))
+
+mcm  <- read_csv(file.path(data_path, "MCM/HepatorenalSyndromeT_DATA_2025-02-20_0828(kusztos.victoria@mayo.edu)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("mcm_", row_number()))
+
+inu  <- read_csv(file.path(data_path, "INU/TerlipressinDatabase_DATA_2025-02-13_1416(esorman@iu.edu)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("inu_", row_number()))
+
+mayo <- read_csv(file.path(data_path, "Mayo/HepatorenalSyndromeT_DATA_2025-03-22_1749(vargas.hugo@mayo.edu)_JR.csv")) %>%
+  select(order(colnames(.))) %>% mutate(id = paste0("mayo_", row_number()))
+
+cat("Total centers loaded:", 15, "\n")
+cat("Rows per center:\n")
+tibble(
+  Center = c("BID","BSW","CCF","CPM","CSF","INU","Mayo","MCM","MGH","MMC","NWM","OCH","PEN","UNM","Yale"),
+  N = c(nrow(bid),nrow(bsw),nrow(ccf),nrow(cpm),nrow(csf),nrow(inu),nrow(mayo),nrow(mcm),nrow(mgh),nrow(mmc),nrow(nwm),nrow(och),nrow(pen),nrow(unm),nrow(yal))
+) %>% print()
+```
+
+# Functions
+
+All custom functions used throughout the project.
+
+## get_common_and_missing_variables
+
+Identifies shared and center-specific columns across all dataframes.
+
+```{r func-common-vars}
+get_common_and_missing_variables <- function(...) {
+  dfs <- list(...)
+  args <- match.call(expand.dots = FALSE)$`...`
+  df_names <- sapply(args, deparse)
+  df_cols <- lapply(dfs, names)
+  common_cols <- Reduce(intersect, df_cols)
+  all_cols <- unique(unlist(df_cols))
+  missing_cols <- lapply(df_cols, function(cols) setdiff(all_cols, cols))
+  names(missing_cols) <- df_names
+  return(list(common_variables = common_cols, missing_variables = missing_cols))
+}
+```
+
+## reorder_and_bind
+
+Alphabetizes columns in each dataframe, then row-binds all into one.
+
+```{r func-reorder-bind}
+reorder_and_bind <- function(data_list) {
+  data_list_reordered <- lapply(data_list, function(df) {
+    df %>% dplyr::select(order(colnames(df)))
+  })
+  combined_df <- do.call(rbind, data_list_reordered)
+  return(combined_df)
+}
+```
+
+## child_pugh_score
+
+Computes Child-Pugh score from 5 components (bilirubin, albumin, INR, ascites, HE grade).
+
+```{r func-child-pugh}
+child_pugh_score <- function(tbili, albumin, inr, ascites, hegrade) {
+  childpugh_bili <- ifelse(tbili < 2, 1, ifelse(tbili >= 2 & tbili <= 3, 2, 3))
+  childpugh_alb <- ifelse(albumin > 3.5, 1, ifelse(albumin >= 2.8 & albumin <= 3.5, 2, 3))
+  childpugh_inr <- ifelse(inr < 1.7, 1, ifelse(inr >= 1.7 & inr <= 2.3, 2, 3))
+  childpugh_ascites <- ifelse(ascites == 1, 1, ifelse(ascites == 2, 2, 3))
+  childpugh_he <- ifelse(hegrade == 0, 1, ifelse(hegrade %in% c(1, 2), 2, 3))
+  childpugh_total <- childpugh_bili + childpugh_alb + childpugh_inr + childpugh_ascites + childpugh_he
+  return(childpugh_total)
+}
+```
+
+## estimate_creatinine
+
+Estimates serum creatinine from a target eGFR using inverse CKD-EPI 2021 equation (numerical optimization). Scalar function, use with `mapply()`.
+
+```{r func-estimate-cr}
+estimate_creatinine <- function(egfr, age, sex) {
+  if (sex == 1) { A <- 0.9; sex_factor <- 1
+  } else {        A <- 0.7; sex_factor <- 1.012 }
+
+  estimated_creatinine <- function(Scr) {
+    B <- ifelse(Scr <= A, ifelse(sex == 1, -0.302, -0.241), -1.2)
+    calculated_egfr <- 142 * (Scr / A)^B * (0.9938^age) * sex_factor
+    return((calculated_egfr - egfr)^2)
+  }
+  result <- optimize(estimated_creatinine, interval = c(0.1, 2.5))
+  return(result$minimum)
+}
+```
+
+## ckd_epi_gfr
+
+Vectorized CKD-EPI 2021 GFR calculation.
+
+```{r func-ckd-epi}
+ckd_epi_gfr <- function(creat, male, age) {
+  k <- ifelse(male == 1, 0.9, 0.7)
+  a <- ifelse(male == 1, -0.302, -0.241)
+  m <- ifelse(male == 1, 1, 1.012)
+  ratio <- creat / k
+  gfr <- 142 * (pmin(ratio, 1))^a * (pmax(ratio, 1))^-1.2 * 0.9938^age * m
+  return(gfr)
+}
+```
+
+## calculate_clif_c_score
+
+Computes CLIF-C ACLF score from organ sub-scores, age, and WBC.
+
+```{r func-clif-c}
+calculate_clif_c_score <- function(tb_admit, peak_creatinine, he_grade_admission,
+                                    inr_admit, map, pressor, fio2_admission,
+                                    spo2_admission, age_admission, wbc_admit) {
+  clif_score <- 0
+  clif_score <- clif_score + case_when(
+    is.na(tb_admit) ~ 0, tb_admit < 6 ~ 1,
+    tb_admit >= 6 & tb_admit < 12 ~ 2, tb_admit >= 12 ~ 3, TRUE ~ 0)
+  clif_score <- clif_score + case_when(
+    is.na(peak_creatinine) ~ 0, peak_creatinine < 2 ~ 1,
+    peak_creatinine >= 2 & peak_creatinine < 3.5 ~ 2, peak_creatinine >= 3.5 ~ 3, TRUE ~ 0)
+  clif_score <- clif_score + case_when(
+    is.na(he_grade_admission) ~ 0, he_grade_admission == 1 ~ 1,
+    he_grade_admission %in% c(2, 3) ~ 2, he_grade_admission %in% c(4, 5) ~ 3, TRUE ~ 0)
+  clif_score <- clif_score + case_when(
+    is.na(inr_admit) ~ 0, inr_admit < 2 ~ 1,
+    inr_admit >= 2 & inr_admit < 2.5 ~ 2, inr_admit >= 2.5 ~ 3, TRUE ~ 0)
+  clif_score <- clif_score + case_when(
+    is.na(map) ~ 0, map >= 70 & pressor != 1 ~ 1,
+    map < 70 & pressor != 1 ~ 2, !is.na(map) & pressor == 1 ~ 3, TRUE ~ 0)
+  if (!is.na(fio2_admission)) {
+    ratio <- spo2_admission / fio2_admission
+    clif_score <- clif_score + case_when(
+      ratio > 357 ~ 1, ratio > 214 & ratio <= 357 ~ 2, ratio <= 214 ~ 3, TRUE ~ 0)
+  }
+  CLIF_C_Score <- 10 * (0.33 * clif_score + 0.04 * age_admission + 0.63 * log(wbc_admit) - 2)
+  return(CLIF_C_Score)
+}
+```
+
+## calculate_organ_failures
+
+Counts ACLF organ failures (0--6) from day 0 labs.
+
+```{r func-organ-failures}
+calculate_organ_failures <- function(bili_terli_day0, he_terli_day0, inr_terli_day0,
+                                      map_terli_values, fio2_terli_day0,
+                                      spo2_terli_day0, scr_terli_day0) {
+  liver_f <- as.numeric(!is.na(bili_terli_day0) && bili_terli_day0 >= 6)
+  brain_f <- as.numeric(!is.na(he_terli_day0) && he_terli_day0 > 1)
+  coagulation_f <- as.numeric(!is.na(inr_terli_day0) && inr_terli_day0 >= 2)
+  circulatory_f <- as.numeric(!is.na(map_terli_values) && map_terli_values < 70)
+  respiratory_f <- as.numeric(!is.na(fio2_terli_day0) && fio2_terli_day0 != 0 &&
+                               !is.na(spo2_terli_day0) && (spo2_terli_day0 / fio2_terli_day0) <= 357)
+  kidney_f <- as.numeric(!is.na(scr_terli_day0) && scr_terli_day0 >= 1.5)
+  return(sum(liver_f, brain_f, coagulation_f, circulatory_f, respiratory_f, kidney_f))
+}
+```
+
+## qc_check
+
+Identifies missing data per patient and determines terlipressin discontinuation day.
+
+```{r func-qc-check}
+qc_check <- function(data) {
+  id <- character(); checking <- character(); discont_day <- numeric()
+  dc_available_cols <- c("dc_available_albumin___999", "dc_available_inr___999",
+    "dc_available_scr___999", "dc_available_sna___999", "dc_available_tbili___999")
+  dc_cols <- c("dc_albumin", "dc_inr", "dc_scr", "dc_sna", "dc_tbili")
+  discont_cols <- grep("^discont_terli_day", names(data), value = TRUE)
+  scr_cols <- grep("^scr_terli_day", names(data), value = TRUE)
+  other_cols <- setdiff(names(data),
+    c("subjectid", discont_cols, scr_cols, dc_available_cols, dc_cols,
+      "dc_death_90days", "days_to_discharge", "dc_days_lastencounter",
+      "dc_days_to_death", "days_to_lost_to_followup",
+      "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli",
+      "peakhospit_scr", "rrt", "dc_lt_90days", "dc_hd_status", "dc_scr90_value", "dc_terli_use"))
+
+  for (i in seq_len(nrow(data))) {
+    current_id <- data$subjectid[i]
+    discont_values <- data[i, discont_cols, drop = FALSE]
+    scr_values <- data[i, scr_cols, drop = FALSE]
+    other_values <- data[i, other_cols, drop = FALSE]
+    current_checking <- character(); current_discont_day <- NA
+
+    # 1) Find discontinuation day
+    for (j in seq_along(discont_values)) {
+      if (!is.na(discont_values[[j]]) && discont_values[[j]] == 1) {
+        current_discont_day <- as.numeric(gsub("discont_terli_day", "", names(discont_values)[j]))
+        break
+      } else if (is.na(discont_values[[j]])) {
+        current_checking <- c(current_checking, names(discont_values)[j])
+      }
+    }
+
+    # 2) Check SCr up to discontinuation day
+    if (!is.na(current_discont_day)) {
+      cols_to_check <- seq_len(min(current_discont_day + 1, ncol(scr_values)))
+      for (k in cols_to_check) {
+        if (is.na(scr_values[[k]])) current_checking <- c(current_checking, names(scr_values)[k])
+      }
+    } else {
+      for (k in seq_along(scr_values)) {
+        if (is.na(scr_values[[k]])) current_checking <- c(current_checking, names(scr_values)[k])
+      }
+    }
+
+    # 3) Check DC availability columns
+    for (m in seq_along(dc_available_cols)) {
+      avail_val <- data[[dc_available_cols[m]]][i]
+      if (is.na(avail_val)) {
+        current_checking <- c(current_checking, dc_available_cols[m], dc_cols[m]); next
+      }
+      if (avail_val == 0 && is.na(data[[dc_cols[m]]][i])) {
+        current_checking <- c(current_checking, dc_cols[m])
+      }
+    }
+
+    # 4) Check other variables
+    for (l in seq_along(other_values)) {
+      if (is.na(other_values[[l]])) current_checking <- c(current_checking, names(other_values)[l])
+    }
+
+    # 5) Check dc_death_90days logic
+    dc_death_val <- data[["dc_death_90days"]][i]
+    days_discharge_val <- data[["days_to_discharge"]][i]
+    if (is.na(dc_death_val) || is.na(days_discharge_val)) {
+      current_checking <- c(current_checking, "dc_death_90days", "days_to_discharge",
+        "dc_days_lastencounter", "dc_days_to_death", "days_to_lost_to_followup")
+    } else {
+      if (dc_death_val == 0 && is.na(data[["dc_days_lastencounter"]][i]))
+        current_checking <- c(current_checking, "dc_days_lastencounter")
+      if (dc_death_val == 1 && is.na(data[["dc_days_to_death"]][i]))
+        current_checking <- c(current_checking, "dc_days_to_death")
+      if (dc_death_val == 2 && is.na(data[["days_to_lost_to_followup"]][i]))
+        current_checking <- c(current_checking, "days_to_lost_to_followup")
+    }
+
+    if (length(current_checking) > 0 || !is.na(current_discont_day)) {
+      id <- c(id, current_id)
+      checking <- c(checking, paste(current_checking, collapse = ", "))
+      discont_day <- c(discont_day, current_discont_day)
+    }
+  }
+  return(data.frame(subjectid = id, Checking = checking, Discont_Day = discont_day, stringsAsFactors = FALSE))
+}
+```
+
+## create_dosechange_day
+
+Finds first day (2--13) a dose change occurred.
+
+```{r func-dosechange}
+create_dosechange_day <- function(df) {
+  df$dosechange_day <- apply(df, 1, function(row) {
+    for (i in 2:13) {
+      varname <- paste0("dosechange_terli_day", i)
+      if (!is.na(row[[varname]]) && row[[varname]] == 1) return(i)
+    }
+    return(NA)
+  })
+  return(df)
+}
+```
+
+## create_table_one
+
+Generates stratified Table 1 and saves as CSV.
+
+```{r func-table-one}
+create_table_one <- function(all_vars, cat_vars, data, strata, output) {
+  numerical_vars <- setdiff(all_vars, cat_vars)
+  T1 <- tableone::CreateTableOne(
+    vars = all_vars, strata = strata, data = data,
+    factorVars = cat_vars, addOverall = TRUE, includeNA = FALSE)
+  T1_print <- print(T1, showAllLevels = TRUE, nonnormal = numerical_vars,
+    missing = TRUE, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+  write.csv(T1_print, file = output)
+}
+```
+
+# Data Management
+
+## Harmonize columns and merge
+
+```{r data-harmonize}
+# Drop inconsistent date/access-group columns
+bid  <- bid  %>% select(-c("gihep_consult_date", "neph_consult_date", "pall_consult_date"))
+pen  <- pen  %>% select(-c("gihep_consult_date", "neph_consult_date", "pall_consult_date"))
+yal  <- yal  %>% select(-c("gihep_consult_date", "neph_consult_date", "pall_consult_date"))
+mcm  <- mcm  %>% select(-c("gihep_consult_date", "neph_consult_date", "pall_consult_date", "redcap_data_access_group"))
+mayo <- mayo %>% select(-c("gihep_consult_date", "neph_consult_date", "pall_consult_date", "redcap_data_access_group"))
+
+# Check common/missing variables
+vars <- get_common_and_missing_variables(bid, bsw, ccf, cpm, csf, inu, mayo, mcm, mgh, mmc, nwm, och, pen, unm, yal)
+cat("Common variables across all centers:", length(vars$common_variables), "\n")
+
+# Merge all 15 centers
+df_list <- list(bid, bsw, ccf, cpm, csf, inu, mayo, mcm, mgh, mmc, nwm, och, pen, unm, yal)
+all <- reorder_and_bind(df_list)
+cat("Total patients after merge:", nrow(all), "\n")
+cat("Total variables:", ncol(all), "\n")
+```
+
+## QC check and exclusions
+
+```{r data-qc}
+# Build selected variable set for QC
+discont_terli_days <- grep("discont_terli_day", str_sort(names(all)), value = TRUE)
+discont_terli_day_numbers <- as.numeric(sub(".*_day(\\d+)$", "\\1", discont_terli_days))
+sorted_discont_terli <- discont_terli_days[order(discont_terli_day_numbers)]
+
+scr_days <- grep("^scr_.*_day(0|[1-9]|1[0-3])$", str_sort(names(all)), value = TRUE)
+day_numbers <- as.numeric(sub(".*_day(\\d+)$", "\\1", scr_days))
+sorted_scr <- scr_days[order(day_numbers)]
+
+selected_variables <- tolower(c(
+  "dc_available_albumin___999", "dc_available_inr___999", "dc_available_scr___999",
+  "dc_available_sna___999", "dc_available_tbili___999",
+  "dc_albumin", "dc_inr", "dc_scr", "dc_sna", "dc_tbili",
+  "Hrsreversal", "Age", "sex_male", "Race", "Hispanic", "Cirrhosis_etiology",
+  "Scr_admit", "Tbili_admit", "Inr_admit", "Sodium_admit", "Albumin_admit",
+  "baseline_scr", "baseline_scr_days_to_admit", "baseline_scr",
+  "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli",
+  "dc_lt_90days", "dc_hd_status", "dc_scr90_value", "aki_height", "aki_weight"))
+
+all_selected <- all %>% select(
+  id, subjectid, all_of(sorted_discont_terli), all_of(sorted_scr),
+  dc_death_90days, days_to_discharge, dc_days_lastencounter,
+  dc_days_to_death, days_to_lost_to_followup, all_of(selected_variables),
+  scr_day1_post_terli, scr_day2_post_terli, scr_day3_post_terli,
+  peakhospit_scr, rrt, dc_lt_90days, dc_hd_status, dc_scr90_value, dc_terli_use,
+  dc_available_albumin___999, dc_available_inr___999, dc_available_scr___999,
+  dc_available_sna___999, dc_available_tbili___999,
+  dc_albumin, dc_inr, dc_scr, dc_sna, dc_tbili)
+
+# Run QC check → determines Discont_Day
+qc_check_data <- qc_check(all_selected)
+final_master <- all %>% merge(qc_check_data %>% select(subjectid, Discont_Day), all.x = TRUE, by = "subjectid")
+
+# Exclusions (BUG #9 FIXED: subgroup_master created BEFORE filtering)
+removed_id <- c(
+  "BID-PTD-001","BID-PTD-002","BID-PTD-003","BID-PTD-004","BID-PTD-005","BID-PTD-006","BID-PTD-007",
+  paste0("MAYO-", 5:28), "MMC-005","MMC-006","MMC-007")
+subgroup_id <- c("BID-005R1","BID-005R2","BID-013R1","MGH-001R1","MGH-014R1","MGH-014R2","MGH-026R1","NWM-014R1")
+
+subgroup_master <- final_master %>% filter(subjectid %in% subgroup_id)
+final_master <- final_master %>% filter(!subjectid %in% removed_id, !subjectid %in% subgroup_id)
+
+cat("Excluded:", length(removed_id), "removed +", length(subgroup_id), "re-treatment\n")
+cat("Final cohort:", nrow(final_master), "patients\n")
+cat("Re-treatment subgroup:", nrow(subgroup_master), "patients\n")
+```
+
+## Compute MAP summary and dose changes
+
+```{r data-map-dose}
+# Mean MAP on Day 0
+df_long <- final_master %>%
+  pivot_longer(cols = starts_with("map_terli_day"),
+    names_to = c("temp", "day", "time"),
+    names_pattern = "^(map_terli)_day(\\d+)_time(\\d+)$",
+    values_to = "map") %>%
+  mutate(day = as.numeric(day), time = as.numeric(time)) %>% select(-temp)
+
+df_summary <- df_long %>%
+  group_by(subjectid, day) %>%
+  summarise(mean_map = mean(map, na.rm = TRUE), .groups = "drop")
+map <- df_summary %>% filter(day == 0) %>% select(subjectid, mean_map) %>% rename(mean_map_day0 = mean_map)
+
+# Dose change day
+dosechange_days <- grep("dosechange_terli_day", str_sort(names(all)), value = TRUE)
+sorted_dosechange_days <- dosechange_days[order(as.numeric(sub(".*_day(\\d+)$", "\\1", dosechange_days)))]
+sorted_dosechange_days <- sorted_dosechange_days[sorted_dosechange_days != "dosechange_terli_day1"]
+
+final_master <- create_dosechange_day(final_master)
+```
+
+## Time-to-death and survival variables
+
+```{r data-survival}
+final_master <- final_master %>% mutate(
+  dc_death_status = if_else(disposition == 5, 1, 0),
+  after_discharge_90days_death_status = if_else(dc_death_90days == 1, 1, 0),
+  dc_days_to_death = if_else(dc_death_90days == 2 | dc_death_90days == 0, 90, dc_days_to_death)
+) %>% mutate(
+  days_to_lost_to_followup = if_else(is.na(days_to_lost_to_followup), 0, days_to_lost_to_followup),
+  time_to_death = case_when(
+    dc_death_status == 1 ~ days_to_discharge,
+    dc_death_status == 0 & dc_death_90days == 2 ~ days_to_discharge + days_to_lost_to_followup,
+    dc_death_status == 0 & dc_death_90days != 2 ~ days_to_discharge + dc_days_to_death)
+) %>% mutate(
+  time_to_death_status = case_when(
+    dc_death_status == 1 ~ 1,
+    dc_death_status == 0 & after_discharge_90days_death_status == 1 ~ 1,
+    TRUE ~ 0),
+  time_to_death = time_to_death - days_to_terli_initiation_day0)
+```
+
+## Derive primary variables (Final Data 2)
+
+```{r data-derive, warning=FALSE}
+# Compute population mean bilirubin BEFORE rowwise
+bili_pop_mean <- mean(final_master$bili_terli_day0, na.rm = TRUE)
+
+final_master <- final_master %>%
+  filter(!is.na(Discont_Day)) %>%
+  rowwise() %>%
+  mutate(
+    last_scr = get(paste0("scr_terli_day", Discont_Day)),
+    last_scr_2 = if (Discont_Day > 0) get(paste0("scr_terli_day", Discont_Day - 1)) else NA_real_,
+    discont_reason_terli = get(paste0("discont_reason_terli_day", Discont_Day)),
+    terli_ae_abdpain  = get(paste0("terli_ae_abdpain_day", Discont_Day)),
+    terli_ae_nausea   = get(paste0("terli_ae_nausea_day", Discont_Day)),
+    terli_ae_diarrhea = get(paste0("terli_ae_diarrhea_day", Discont_Day)),
+    terli_ae_volover  = get(paste0("terli_ae_volover_day", Discont_Day)),
+    terli_ae_brady    = get(paste0("terli_ae_brady_day", Discont_Day)),
+    terli_other       = get(paste0("terli_other_day", Discont_Day))
+  ) %>%
+  merge(map, by = "subjectid", all.x = TRUE) %>%
+  mutate(
+    lowest_creatinine = pmin(last_scr_2, last_scr, scr_day1_post_terli, na.rm = TRUE),
+    HRS_reversal_new = case_when(
+      lowest_creatinine <= 1.5 & (scr_terli_day0 - lowest_creatinine) >= 0.3 ~ 1, TRUE ~ 0),
+    scr_terli_day0 = ifelse(scr_terli_day0 > 100, scr_terli_day0 / 100, scr_terli_day0),
+    fio2_terli_day0 = ifelse(fio2_terli_day0 > 1, fio2_terli_day0 / 100, fio2_terli_day0)
+  ) %>%
+  # Transplant
+  mutate(
+    transplant_lt = case_when(
+      lt_during_hospital == 1 | slkt_during_hospital == 1 ~ 1,
+      dc_lt_90days == 1 | dc_lt_90days == 2 ~ 2,
+      lt_during_hospital == 0 & lt_status_1yr == 1 & days_to_lt_1yr > 90 ~ 3,
+      TRUE ~ 0),
+    time_to_transplant = case_when(
+      transplant_lt == 1 & !is.na(days_to_lt) ~ days_to_lt,
+      transplant_lt == 1 & is.na(days_to_lt) ~ days_to_discharge - days_to_lt_1yr,
+      transplant_lt %in% c(2, 3) ~ days_to_discharge + days_to_lt_1yr,
+      TRUE ~ NA_real_),
+    time_to_transplant = time_to_transplant - days_to_terli_initiation_day0,
+    transplant_lt_status = if_else(transplant_lt == 0, 0, 2),
+    time_to_transplant_cmp = if_else(is.na(time_to_transplant), 999, time_to_transplant),
+    transplant_slkt = case_when(
+      slkt_during_hospital == 1 | dc_lt_90days == 2 | lt_type_1yr == 2 ~ 1, TRUE ~ 0)
+  ) %>%
+  # Baseline SCr
+  mutate(
+    egfr = 75,
+    baseline_scr_calculated = mapply(estimate_creatinine, egfr, age, sex_male),
+    baseline_scr_new = case_when(
+      baseline_scr_days_to_admit != 0 & !is.na(baseline_scr) ~ baseline_scr,
+      baseline_scr_days_to_admit == 0 & !is.na(baseline_scr_120to365_value) ~ baseline_scr_120to365_value,
+      baseline_scr_days_to_admit == 0 & is.na(baseline_scr_120to365_value) ~ pmin(baseline_scr_calculated, scr_admit)),
+    baseline_scr_new_2 = case_when(
+      baseline_scr_days_to_admit != 0 & !is.na(baseline_scr) ~ baseline_scr,
+      baseline_scr_days_to_admit == 0 & !is.na(baseline_scr_120to365_value) ~ baseline_scr_120to365_value),
+    eGFR = mapply(ckd_epi_gfr, baseline_scr_new_2, sex_male, age)
+  ) %>%
+  # AKI staging
+  mutate(
+    ratio = round(scr_terli_day0 / baseline_scr_new, 4),
+    delta = round(scr_terli_day0 - baseline_scr_new, 4),
+    akin = case_when(
+      (ratio >= 1.5 & ratio < 2) | (ratio < 1.5 & delta > 0.3) ~ 1,
+      ratio >= 2 & ratio < 3 ~ 2, ratio >= 3 ~ 3, TRUE ~ NA),
+    akin = ifelse(scr_terli_day0 >= 4, 3, akin)
+  ) %>%
+  # BUG #10 FIXED: use pre-computed population mean
+
+  mutate(bili_cal = coalesce(bili_terli_day0, tbili_admit, bili_pop_mean)) %>%
+  # Clinical scores (BUG #3 FIXED: bili_terli_day0 instead of tele_terli_day0)
+  mutate(
+    clif_c_score = mapply(calculate_clif_c_score, tbili_admit, scr_terli_day0, he_terli_day0,
+      inr_terli_day0, map_terli_day0_time0, norepi_terli_day0, fio2_terli_day0,
+      spo2_terli_day0, age, wbc_terli_day0),
+    aclf_grade = mapply(calculate_organ_failures, bili_terli_day0, he_terli_day0, inr_terli_day0,
+      map_terli_day0_time0, fio2_terli_day0, spo2_terli_day0, scr_terli_day0),
+    child_pugh_score = mapply(child_pugh_score, bili_terli_day0, alb_terli_day0,
+      inr_terli_day0, ascites_aki, he_terli_day0)
+  ) %>%
+  # Discontinuation AKI staging
+  mutate(
+    discont_ratio = round(lowest_creatinine / baseline_scr_new, 4),
+    discont_delta = round(lowest_creatinine - baseline_scr_new, 4),
+    discont_aki_stage = case_when(
+      is.na(discont_ratio) | is.na(discont_delta) ~ NA_real_,
+      discont_ratio < 1.5 & discont_delta < 0.3 ~ 0,
+      (discont_ratio >= 1.5 & discont_ratio < 2) | (discont_ratio < 1.5 & discont_delta >= 0.3) ~ 1,
+      discont_ratio >= 2 & discont_ratio < 3 ~ 2,
+      discont_ratio >= 3 ~ 3),
+    discont_aki_stage = ifelse(lowest_creatinine >= 4, 3, discont_aki_stage),
+    difference = round(akin - discont_aki_stage, 0),
+    hrs_responders = case_when(
+      difference <= 0 ~ 0,
+      difference > 0 & round(lowest_creatinine - baseline_scr_new, 2) > 0.3 ~ 1,
+      round(lowest_creatinine - baseline_scr_new, 2) <= 0.3 ~ 2),
+    hrs_responders_cat_2 = ifelse(hrs_responders == 0, 0, 1))
+
+# AE derived variables from discontinuation day
+final_master <- final_master %>% rowwise() %>%
+  mutate(
+    terli_7 = if_else(discont_reason_terli == 7, 1, 0),
+    terli_8 = if_else(discont_reason_terli == 8, 1, 0)
+  ) %>%
+  mutate(terli_ae_respfail = if_else(terli_7 == 1 | terli_ae_volover == 1, 1, 0)) %>%
+  mutate(across(
+    c(terli_ae_abdpain, terli_ae_nausea, terli_ae_diarrhea,
+      terli_ae_volover, terli_ae_brady, terli_7, terli_8, terli_ae_respfail),
+    ~ if_else(is.na(.x), 0, .x)
+  )) %>%
+  mutate(
+    any_ae = if_else(
+      terli_ae_abdpain == 1 | terli_ae_nausea == 1 | terli_ae_diarrhea == 1 |
+      terli_ae_volover == 1 | terli_ae_brady == 1 | terli_7 == 1 |
+      terli_8 == 1 | terli_ae_respfail == 1, 1, 0),
+    listed_transplant = if_else(lt_eval == 2 | lteval_listingstatus == 1, 1, 0),
+    listed_transplant = ifelse(is.na(listed_transplant), 0, listed_transplant)
+  ) %>% ungroup()
+
+# Dose change status and timing (days 2-12)
+dosechange_cols <- c("dosechange_terli_day2", "dosechange_terli_day3",
+  "dosechange_terli_day4", "dosechange_terli_day5", "dosechange_terli_day6",
+  "dosechange_terli_day7", "dosechange_terli_day8", "dosechange_terli_day9",
+  "dosechange_terli_day10", "dosechange_terli_day11", "dosechange_terli_day12")
+
+final_master <- final_master %>%
+  rowwise() %>%
+  mutate(
+    dosechange_status = if_else(any(c_across(all_of(dosechange_cols)) == 1, na.rm = TRUE), 1, 0),
+    time_to_dosechange = if_else(
+      dosechange_status == 1,
+      min(which(c_across(all_of(dosechange_cols)) == 1)) + 1,
+      NA_integer_)
+  ) %>% ungroup()
+
+cat("Final analytic cohort:", nrow(final_master), "patients\n")
+cat("HRS reversal rate:", round(mean(final_master$HRS_reversal_new, na.rm = TRUE) * 100, 1), "%\n")
+```
+
+## MELD scores, organ failures, criteria
+
+```{r data-meld-criteria}
+final_master <- final_master %>% mutate(
+  creatinine_adj_day0 = case_when(scr_terli_day0 < 1 ~ 1, scr_terli_day0 >= 4 ~ 4, TRUE ~ scr_terli_day0),
+  day0_meld = round(9.57 * log(creatinine_adj_day0) + 3.78 * log(bili_terli_day0) + 11.20 * log(inr_terli_day0) + 6.43),
+  day0_meld_na = round(day0_meld + 1.32 * (137 - pmin(pmax(na_terli_day0, 125), 137)) -
+    (0.033 * day0_meld * (137 - pmin(pmax(na_terli_day0, 125), 137)))),
+  day0_meld_na = ifelse(day0_meld > 11, day0_meld_na, NA),
+  female_factor = if_else(sex_male == 0, 1.33, 0),
+  day0_meld_3 = round(female_factor + 4.56*log(bili_terli_day0) + 0.82*(137-na_terli_day0) -
+    0.24*(137-na_terli_day0)*log(bili_terli_day0) + 9.09*log(inr_terli_day0) +
+    11.14*log(creatinine_adj_day0) + 1.85*(3.5-alb_terli_day0) -
+    1.83*(3.5-alb_terli_day0)*log(creatinine_adj_day0) + 6),
+  admit_creatinine_adj = case_when(scr_admit < 1 ~ 1, scr_admit >= 4 ~ 4, TRUE ~ scr_admit),
+  admit_meld = round(9.57*log(admit_creatinine_adj) + 3.78*log(tbili_admit) + 11.20*log(inr_admit) + 6.43),
+  admit_meld_na = round(admit_meld + 1.32*(137-pmin(pmax(sodium_admit,125),137)) -
+    (0.033*admit_meld*(137-pmin(pmax(sodium_admit,125),137)))),
+  admit_meld_na = ifelse(admit_meld > 11, admit_meld_na, NA),
+  admit_meld_3 = round(female_factor + 4.56*log(tbili_admit) + 0.82*(137-sodium_admit) -
+    0.24*(137-sodium_admit)*log(tbili_admit) + 9.09*log(inr_admit) +
+    11.14*log(admit_creatinine_adj) + 1.85*(3.5-albumin_admit) -
+    1.83*(3.5-albumin_admit)*log(admit_creatinine_adj) + 6)
+) %>% mutate(
+  liver_f = ifelse(!is.na(bili_terli_day0) & bili_terli_day0 >= 6, 1, 0),
+  brain_f = ifelse(!is.na(he_terli_day0) & he_terli_day0 > 1, 1, 0),
+  coagulation_f = ifelse(!is.na(inr_terli_day0) & inr_terli_day0 >= 2, 1, 0),
+  circulatory_f = ifelse(!is.na(map_terli_day0_time0) & map_terli_day0_time0 < 70, 1, 0),
+  respiratory_f = ifelse(!is.na(fio2_terli_day0) & fio2_terli_day0 != 0 &
+    !is.na(spo2_terli_day0) & (spo2_terli_day0/fio2_terli_day0) <= 357, 1, 0),
+  kidney_f = ifelse(!is.na(scr_terli_day0) & scr_terli_day0 >= 1.5, 1, 0),
+  organ_failure_sum = liver_f + brain_f + coagulation_f + circulatory_f + respiratory_f + kidney_f
+) %>% mutate(
+  rrt_2 = ifelse(rrt == 2, 0, rrt),
+  aclf_grade = if_else(aclf_grade > 3, 3, aclf_grade),
+  criteria_1 = ifelse((total_terli_day1 == 0 | is.na(total_terli_day1)) & discont_terli_day1 == 1, 1, 0),
+  criteria_2 = ifelse(aclf_grade >= 3, 1, 0),
+  criteria_3 = ifelse(scr_terli_day0 >= 5, 1, 0),
+  criteria_4 = case_when(spo2_terli_day0/fio2_terli_day0 < 357 ~ 1, spo2_terli_day0/fio2_terli_day0 >= 357 ~ 0),
+  criteria_4 = ifelse(is.na(criteria_4), 0, criteria_4),
+  criteria_5 = ifelse(admit_meld_3 > 35, 1, 0),
+  HRS_criteria_meld = if_else(criteria_2 == 1 | criteria_3 == 1 | criteria_4 == 1 | criteria_5 == 1, 1, 0),
+  HRS_criteria_3 = if_else(criteria_2 == 1 | criteria_3 == 1 | criteria_4 == 1, 1, 0),
+  HRS_Criteria = case_when(
+    criteria_1 == 0 & criteria_2 == 0 & criteria_3 == 0 & criteria_4 == 0 ~ 0,
+    criteria_1 == 1 | criteria_2 == 1 | criteria_3 == 1 | criteria_4 == 1 ~ 1)
+)
+
+# 90-day competing risk outcomes
+final_master <- final_master %>% mutate(
+  time_to_death_90days = pmin(time_to_death, 90),
+  time_to_death_status_90days = if_else(time_to_death_status == 1 & time_to_death <= 90, 1, 0),
+  time_to_transplant_90days = pmin(time_to_transplant_cmp, 90),
+  time_to_transplant_status_90days = if_else(transplant_lt_status == 2 & time_to_transplant_cmp <= 90, 2, 0),
+  time_to_death_90days_cmp = pmin(time_to_death_90days, time_to_transplant_90days),
+  time_to_death_status_90days_cmp = case_when(
+    time_to_death_90days <= time_to_transplant_90days ~ time_to_death_status_90days,
+    time_to_death_90days > time_to_transplant_90days ~ time_to_transplant_status_90days)
+)
+
+# Additional derived
+final_master <- final_master %>% mutate(
+  fena = (100 * (scr_admit * ua_na_value_hrs) / (sodium_admit * ua_cr_value_hrs)),
+  urine_pc = uaprotein_hrs / ua_cr_value_hrs,
+  hrs_rebound = if_else(scr_day1_post_terli - last_scr >= 0.3, 1, 0),
+  admit_meld_3_raw = admit_meld_3,
+  admit_meld_3 = if_else(is.na(admit_meld_3), median(admit_meld_3, na.rm = TRUE), admit_meld_3),
+  race_2 = if_else(race == 1 | is.na(race), 1, 0),
+  hispanic = if_else(is.na(hispanic), 0, hispanic),
+  transplant_outcome = if_else(time_to_transplant_status_90days == 2, 1, 0),
+  ckd_baseline = if_else(eGFR < 60, 1, 0),
+  clif_c_score_new = if_else(is.na(clif_c_score), median(clif_c_score, na.rm = TRUE), clif_c_score),
+  total_albumin = rowSums(
+    select(., albumintotal_terli_day0, albumintotal_terli_day1,
+      albumintotal_terli_day2, albumintotal_terli_day3, albumintotal_terli_day4,
+      albumintotal_terli_day5, albumintotal_terli_day6, albumintotal_terli_day7,
+      albumintotal_terli_day8, albumintotal_terli_day9, albumintotal_terli_day10,
+      albumintotal_terli_day11, albumintotal_terli_day12, albumintotal_terli_day13),
+    na.rm = TRUE)
+)
+
+cat("MELD 3.0 at admission (median):", median(final_master$admit_meld_3, na.rm = TRUE), "\n")
+cat("90-day mortality:", round(mean(final_master$time_to_death_status_90days, na.rm = TRUE)*100, 1), "%\n")
+```
+
+## Summary statistics
+
+```{r summary-stats}
+cat("=== Final Dataset Summary ===\n")
+cat("N:", nrow(final_master), "\n")
+cat("Variables:", ncol(final_master), "\n")
+cat("Centers:", length(unique(sub("-.*", "", final_master$subjectid))), "\n\n")
+
+cat("--- Key Outcomes ---\n")
+cat("HRS Reversal:", sum(final_master$HRS_reversal_new == 1, na.rm = TRUE), "/",
+    nrow(final_master), "(", round(mean(final_master$HRS_reversal_new, na.rm = TRUE)*100,1), "%)\n")
+cat("Any HRS Response:", sum(final_master$hrs_responders_cat_2 == 1, na.rm = TRUE), "/",
+    nrow(final_master), "(", round(mean(final_master$hrs_responders_cat_2, na.rm = TRUE)*100,1), "%)\n")
+cat("90-day Death:", sum(final_master$time_to_death_status_90days == 1, na.rm = TRUE), "\n")
+cat("90-day Transplant:", sum(final_master$time_to_transplant_status_90days == 2, na.rm = TRUE), "\n\n")
+
+cat("--- Clinical Scores (median [IQR]) ---\n")
+cat("MELD 3.0 admission:", median(final_master$admit_meld_3, na.rm = TRUE),
+    "[", quantile(final_master$admit_meld_3, 0.25, na.rm = TRUE), "-",
+    quantile(final_master$admit_meld_3, 0.75, na.rm = TRUE), "]\n")
+cat("Child-Pugh:", median(final_master$child_pugh_score, na.rm = TRUE),
+    "[", quantile(final_master$child_pugh_score, 0.25, na.rm = TRUE), "-",
+    quantile(final_master$child_pugh_score, 0.75, na.rm = TRUE), "]\n")
+cat("CLIF-C:", round(median(final_master$clif_c_score, na.rm = TRUE), 1),
+    "[", round(quantile(final_master$clif_c_score, 0.25, na.rm = TRUE), 1), "-",
+    round(quantile(final_master$clif_c_score, 0.75, na.rm = TRUE), 1), "]\n")
+```

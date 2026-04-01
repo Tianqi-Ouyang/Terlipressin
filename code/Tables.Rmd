@@ -1,0 +1,3419 @@
+---
+title: "Table 1"
+output: html_document
+date: "2025-05-07"
+---
+
+```{r,include=FALSE}
+library(tidyverse)
+library(tableone)
+library(writexl)
+library(gtsummary)
+library(survival)
+library(ggplot2)
+library(readxl)
+library(ggpubr)
+library(splines)
+library(xlsx)
+library(lattice)
+library(mice)
+library(DescTools)
+library(survminer)
+library(finalfit)
+library(tidycmprsk)
+library(ggsurvfit) 
+library(sqldf)
+library(table1)
+library(cobalt)
+
+
+
+pen <- read_csv("~/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/PEN/Harmony_DATA_2025-02-20_0757(sevda.aghayeva@pennmedicine.upenn.edu)_JR.csv") %>% select(order(colnames(.))) %>% mutate(id = paste0("pen_", row_number()))
+
+mmc <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/MMC/HepatorenalSyndromeA_DATA_2025-01-30_1528(pamejia@montefiore.org)_JR.csv') %>%  select(order(colnames(.)))%>% mutate(id = paste0("mmc_", row_number()))
+
+csf <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/CSF/TerlipressinStudy_DATA_2025-03-20_1346_JR.csv') %>% select(order(colnames(.)))%>% mutate(id = paste0("csf_", row_number()))
+
+
+
+
+unm <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/UNM/HRSHarmonyTerlipress_DATA_2025-02-10_2216(jteixeira@salud.unm.edu)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("unm_", row_number()))
+
+bid <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/BID/Data Export 2025.02.05(wyang8@bidmc.harvard.edu)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("bid_", row_number()))
+
+bsw <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/BSW/TerlipressinRegistry_DATA_2025-03-12_0744_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("bsw_", row_number()))
+
+ccf <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/CCF/HARMONY_ClevelandClinic_HRSData Updated_Queries 04FEB2025(mehkrio@ccf.org)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("ccf_", row_number()))
+
+
+cpm <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/CPM/HARMONYHRSFrederick_DATA_2025-03-03_1134(mary.thornton@sutterhealth.org)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("cpm_", row_number()))
+
+
+och <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/OCH/OCHHRSTerlipressinRe_DATA_2025-01-02_2259(gavin.skipper@ochsner.org)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("och_", row_number()))
+
+nwm <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/NWM/02282025 NWM Terli Data(anjana.rajan@nm.org)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("nwm_", row_number()))
+
+mgh <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/MGH/TerlipressinDatabase_DATA_2025-04-15_1219.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("mgh_", row_number()))
+
+yal <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/YAL/TerlipressinForHepat_DATA_2025-02-08_1107_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("yal_", row_number()))
+
+
+mcm <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/MCM/HepatorenalSyndromeT_DATA_2025-02-20_0828(kusztos.victoria@mayo.edu)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("mcm_", row_number()))
+
+inu <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/INU/TerlipressinDatabase_DATA_2025-02-13_1416(esorman@iu.edu)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("inu_", row_number()))
+
+
+mayo <- read_csv('/Users/to909/Partners HealthCare Dropbox/Tianqi Ouyang/De-identified Data/Mayo/HepatorenalSyndromeT_DATA_2025-03-22_1749(vargas.hugo@mayo.edu)_JR.csv')%>% select(order(colnames(.)))%>% mutate(id = paste0("mayo_", row_number()))
+
+
+#Function to get common variables and missing variables in each dataframe
+get_common_and_missing_variables <- function(...) {
+  # Get the list of dataframes
+  dfs <- list(...)
+  
+  # Get the names of the dataframes (for labeling)
+  args <- match.call(expand.dots = FALSE)$`...`
+  df_names <- sapply(args, deparse)
+  
+  # List of column names for each dataframe
+  df_cols <- lapply(dfs, names)
+  
+  # Find common columns across all dataframes
+  common_cols <- Reduce(intersect, df_cols)
+  
+  # Get all unique columns from all dataframes
+  all_cols <- unique(unlist(df_cols))
+  
+  # Find missing columns in each dataframe
+  missing_cols <- lapply(df_cols, function(cols) setdiff(all_cols, cols))
+  
+  # Name the list elements with dataframe names
+  names(missing_cols) <- df_names
+  
+  # Return the results as a list
+  return(list(common_variables = common_cols, missing_variables = missing_cols))
+}
+
+
+
+  
+
+bid <- bid %>% select(-c("gihep_consult_date","neph_consult_date",  "pall_consult_date" ))
+pen <- pen %>% select(-c("gihep_consult_date", "neph_consult_date",  "pall_consult_date" ))
+yal <- yal %>% select(-c("gihep_consult_date", "neph_consult_date",  "pall_consult_date" ))
+mcm <- mcm %>% select(-c("gihep_consult_date", "neph_consult_date",  "pall_consult_date","redcap_data_access_group" ))
+
+mayo <- mayo %>% select(-c("gihep_consult_date", "neph_consult_date", "pall_consult_date","redcap_data_access_group" ))
+
+vars <- get_common_and_missing_variables(bid, bsw, ccf, cpm, csf,inu, mayo, mcm, mgh, mmc, nwm, och, pen, unm, yal)
+
+
+vars$missing_variables
+
+
+reorder_and_bind <- function(data_list) {
+  # 1) For each data frame, reorder columns based on sorted column names
+  data_list_reordered <- lapply(data_list, function(df) {
+    df %>% dplyr::select(order(colnames(df)))
+  })
+  
+  # 2) Row-bind (rbind) all data frames into one
+  combined_df <- do.call(rbind, data_list_reordered)
+  return(combined_df)
+}
+
+df_list <- list(bid, bsw, ccf, cpm, csf,inu, mayo, mcm, mgh, mmc, nwm, och, pen, unm, yal)
+
+all<- reorder_and_bind(df_list)
+
+
+
+
+# new variable function 
+
+child_pugh_score <- function(tbili, albumin, inr, ascites, hegrade) {
+  # Bilirubin Score
+  childpugh_bili <- ifelse(tbili < 2, 1,
+                      ifelse(tbili >= 2 & tbili <= 3, 2, 3))
+  
+  # Albumin Score
+  childpugh_alb <- ifelse(albumin > 3.5, 1,
+                     ifelse(albumin >= 2.8 & albumin <= 3.5, 2, 3))
+  
+  # INR Score
+  childpugh_inr <- ifelse(inr < 1.7, 1,
+                     ifelse(inr >= 1.7 & inr <= 2.3, 2, 3))
+  
+  # Ascites Score (assuming values: 1 = absent, 2 = slight, 3 = moderate)
+  childpugh_ascites <- ifelse(ascites == 1, 1,
+                         ifelse(ascites == 2, 2, 3))
+  
+  # Hepatic Encephalopathy Score (assuming values: 0 = none, 1-2 = mild, 3-4 = severe)
+  childpugh_he <- ifelse(hegrade == 0, 1,
+                    ifelse(hegrade %in% c(1, 2), 2, 3))
+  
+  # Final Child-Pugh Score
+  childpugh_total <- childpugh_bili + childpugh_alb + childpugh_inr + childpugh_ascites + childpugh_he
+  
+  return(childpugh_total)
+}
+
+
+
+
+# estimate_creatinine <- function(egfr, age, sex) {
+#   # Define constants based on CKD-EPI 2021 equation
+#   if (sex == 1) {
+#     k <- 0.9
+#     alpha <- -0.302
+#     sex_factor <- 1  # No adjustment for males
+#   } else {
+#     k <- 0.7
+#     alpha <- -0.241
+#     sex_factor <- 1.012  # Adjustment factor for females
+#   }
+#   
+#   # Compute creatinine using the inverse of the race-free CKD-EPI equation
+#   creatinine <- (egfr / (142 * min(1, k)^alpha * max(1, k)^-1.2 * 0.9938^age * sex_factor))^(1 / -1.2)
+#   
+#   return(creatinine)
+# }
+
+
+estimate_creatinine <- function(egfr, age, sex) {
+  
+  # Set parameters based on sex
+  if (sex == 1) { # male
+    A <- 0.9
+    sex_factor <- 1
+  } else { # female
+    A <- 0.7
+    sex_factor <- 1.012
+  }
+
+  # Define a minimization function to find the creatinine
+  estimated_creatinine <- function(Scr) {
+    B <- ifelse(Scr <= A,
+                ifelse(sex == 1, -0.302, -0.241),
+                -1.2)
+    calculated_egfr <- 142 * (Scr / A)^B * (0.9938^age) * sex_factor
+    return((calculated_egfr - egfr)^2)
+  }
+
+  # Use optimize to find Scr that minimizes the squared error
+  result <- optimize(estimated_creatinine, interval = c(0.1, 2.5))
+  
+  return(result$minimum)
+}
+
+
+
+calculate_clif_c_score <- function(tb_admit, peak_creatinine, he_grade_admission, inr_admit, map, pressor, fio2_admission, spo2_admission, age_admission, wbc_admit) {
+  
+  clif_score <- 0
+  
+  # TB Admit Score
+  clif_score <- clif_score + case_when(
+    is.na(tb_admit) ~ 0,
+    tb_admit < 6 ~ 1,
+    tb_admit >= 6 & tb_admit < 12 ~ 2,
+    tb_admit >= 12 ~ 3,
+    TRUE ~ 0
+  )
+  
+  # Peak Creatinine Score
+  clif_score <- clif_score + case_when(
+    is.na(peak_creatinine) ~ 0,
+    peak_creatinine < 2 ~ 1,
+    peak_creatinine >= 2 & peak_creatinine < 3.5 ~ 2,
+    peak_creatinine >= 3.5 ~ 3,
+    TRUE ~ 0
+  )
+  
+  # HE Grade Admission Score
+  clif_score <- clif_score + case_when(
+    is.na(he_grade_admission) ~ 0,
+    he_grade_admission == 1 ~ 1,
+    he_grade_admission %in% c(2, 3) ~ 2,
+    he_grade_admission %in% c(4, 5) ~ 3,
+    TRUE ~ 0
+  )
+  
+  # INR Admit Score
+  clif_score <- clif_score + case_when(
+    is.na(inr_admit) ~ 0,
+    inr_admit < 2 ~ 1,
+    inr_admit >= 2 & inr_admit < 2.5 ~ 2,
+    inr_admit >= 2.5 ~ 3,
+    TRUE ~ 0
+  )
+  
+  # MAP and Pressor Score
+  clif_score <- clif_score + case_when(
+    is.na(map) ~ 0,
+    map >= 70 & pressor != 1 ~ 1,
+    map < 70 & pressor != 1 ~ 2,
+    !is.na(map) & pressor == 1 ~ 3,
+    TRUE ~ 0
+  )
+  
+  # FIO2 and SPO2 Admission Score
+  if (!is.na(fio2_admission)) {
+    ratio <- spo2_admission / fio2_admission
+    clif_score <- clif_score + case_when(
+      ratio > 357 ~ 1,
+      ratio > 214 & ratio <= 357 ~ 2,
+      ratio <= 214 ~ 3,
+      TRUE ~ 0
+    )
+  }
+  
+  # Calculate CLIF-C Score
+  CLIF_C_Score <- 10 * (0.33 * clif_score + 0.04 * age_admission + 0.63 * log(wbc_admit) - 2)
+  
+  return(CLIF_C_Score)
+}
+
+
+
+calculate_organ_failures <- function(bili_terli_day0, he_terli_day0, inr_terli_day0, 
+                                     map_terli_values, fio2_terli_day0, 
+                                     spo2_terli_day0, scr_terli_day0) {
+  
+  # Initialize organ failure flags
+  liver_f <- 0
+  brain_f <- 0
+  coagulation_f <- 0
+  circulatory_f <- 0
+  respiratory_f <- 0
+  kidney_f <- 0
+  
+  # Apply conditions
+  if (!is.na(bili_terli_day0) && bili_terli_day0 >= 6) {
+    liver_f <- 1
+  }
+  
+  if (!is.na(he_terli_day0) && he_terli_day0 > 1) {
+    brain_f <- 1
+  }
+  
+  if (!is.na(inr_terli_day0) && inr_terli_day0 >= 2) {
+    coagulation_f <- 1
+  }
+  
+  # Calculate mean MAP (if any MAP values are provided) and compare
+  if (!is.na(map_terli_values) && map_terli_values < 70) {
+    circulatory_f <- 1
+  }
+  
+  # Check respiratory condition using SpO2/FiO2 ratio
+  if (!is.na(fio2_terli_day0) && fio2_terli_day0 != 0 && 
+      !is.na(spo2_terli_day0) && (spo2_terli_day0 / fio2_terli_day0) <= 357) {
+    respiratory_f <- 1
+  }
+  
+  if (!is.na(scr_terli_day0) && scr_terli_day0 >= 1.5) {
+    kidney_f <- 1
+  }
+  
+  # Return the results as a list
+  return(sum(
+    liver_f , 
+    brain_f, 
+    coagulation_f, 
+    circulatory_f, 
+    respiratory_f, 
+    kidney_f
+  ))
+}
+
+
+# create discont_terli_day
+discont_terli_days <- grep("discont_terli_day", str_sort(names(all)), value = TRUE)
+discont_terli_day_numbers <- as.numeric(sub(".*_day(\\d+)$", "\\1", discont_terli_days))
+sorted_discont_terli <- discont_terli_days[order(discont_terli_day_numbers)]
+
+
+# create scr_day
+scr_days <- grep("^scr_.*_day(0|[1-9]|1[0-3])$", str_sort(names(all)), value = TRUE)
+day_numbers <- as.numeric(sub(".*_day(\\d+)$", "\\1", scr_days))
+sorted_scr <- scr_days[order(day_numbers)]
+
+
+# other variables 
+selected_variables <- tolower(c( "dc_available_albumin___999", 
+    "dc_available_inr___999",
+    "dc_available_scr___999",
+    "dc_available_sna___999",
+    "dc_available_tbili___999","dc_albumin", "dc_inr", "dc_scr", "dc_sna", "dc_tbili",
+  "Hrsreversal", "Age", "sex_male", "Race", "Hispanic",
+  "Cirrhosis_etiology",
+
+"Scr_admit",
+
+"Tbili_admit",
+
+"Inr_admit",
+
+"Sodium_admit",
+
+"Albumin_admit",
+
+"baseline_scr",
+
+"baseline_scr_days_to_admit", 	
+
+"baseline_scr",
+"scr_day1_post_terli",
+"scr_day2_post_terli",
+"scr_day3_post_terli",
+
+"dc_lt_90days",
+"dc_hd_status",
+"dc_scr90_value",
+"aki_height",
+"aki_weight"
+
+
+))
+
+
+  scr_vars <- c(
+    "scr_admit", "baseline_scr", "baseline_scr_120to365_value", "scr_aki",
+    "scr_terli_day0", "scr_terli_day1", "scr_terli_day2", "scr_terli_day3", 
+    "scr_terli_day4", "scr_terli_day5", "scr_terli_day6", "scr_terli_day8", 
+    "scr_terli_day9", "scr_terli_day10", "scr_terli_day11", "scr_terli_day12", 
+    "scr_terli_day13", "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli", 
+    "peakhospit_scr", "nadirhospit_scr", 
+    "dc_scr", "dc_scr30_value", "dc_scr60_value", "dc_scr90_value", 
+    "scr_value_1yr", "scr_value_day_of_ua_cr_hrs"
+  )
+
+  
+  # Total bilirubin (T. bili)
+  bili_vars <- c(
+    "tbili_admit", "tbili_aki",
+    "bili_terli_day0", "bili_terli_day1", "bili_terli_day2", "bili_terli_day3",
+    "bili_terli_day4", "bili_terli_day5", "bili_terli_day6", "bili_terli_day7",
+    "bili_terli_day8", "bili_terli_day9", "bili_terli_day10", "bili_terli_day11",
+    "bili_terli_day12", "bili_terli_day13",
+    "dc_tbili"
+  )
+
+  
+  # INR: 
+  inr_vars <- c(
+    "inr_admit", "inr_aki",
+    "inr_terli_day0", "inr_terli_day1", "inr_terli_day2", "inr_terli_day3",
+    "inr_terli_day4", "inr_terli_day5", "inr_terli_day6", "inr_terli_day7",
+    "inr_terli_day8", "inr_terli_day9", "inr_terli_day10", "inr_terli_day11",
+    "inr_terli_day12", "inr_terli_day13",
+    "dc_inr"
+  )
+
+  
+  # Albumin: 
+  alb_vars <- c(
+    "albumin_admit", "albumin_aki",
+    "alb_terli_day0", "alb_terli_day1", "alb_terli_day2", "alb_terli_day3",
+    "alb_terli_day4", "alb_terli_day5", "alb_terli_day6", "alb_terli_day7",
+    "alb_terli_day8", "alb_terli_day9", "alb_terli_day10", "alb_terli_day11",
+    "alb_terli_day12", "alb_terli_day13",
+    "dc_albumin"
+  )
+
+  
+  # Sodium (Na):
+  na_vars <- c(
+    "sodium_admit", "sodium_aki", "sna_value_day_of_ua_na_hrs",
+    "na_terli_day0", "na_terli_day1", "na_terli_day2", "na_terli_day3",
+    "na_terli_day4", "na_terli_day5", "na_terli_day6", "na_terli_day7",
+    "na_terli_day8", "na_terli_day9", "na_terli_day10", "na_terli_day11",
+    "na_terli_day12", "na_terli_day13",
+    "dc_sna"
+  )
+
+# ,all_of(selected_variables)
+all_selected <- all %>% select(id,subjectid,all_of(sorted_discont_terli),all_of(sorted_scr),dc_death_90days,days_to_discharge,dc_days_lastencounter,dc_days_to_death,days_to_lost_to_followup,all_of(selected_variables),"dc_death_90days",
+    "days_to_discharge",
+    "dc_days_lastencounter",
+    "dc_days_to_death",
+    "days_to_lost_to_followup",
+    "scr_day1_post_terli",
+"scr_day2_post_terli",
+"scr_day3_post_terli",
+"peakhospit_scr",
+"rrt",
+"dc_lt_90days",
+"dc_hd_status",
+"dc_scr90_value",
+"dc_terli_use","dc_available_albumin___999", 
+    "dc_available_inr___999",
+    "dc_available_scr___999",
+    "dc_available_sna___999",
+    "dc_available_tbili___999",
+"dc_albumin", "dc_inr", "dc_scr", "dc_sna", "dc_tbili")
+
+# a <- all %>% mutate(# 0, No | 1, Yes | 2, Lost to follow up
+#                  time_90=case_when(dc_death_90days==0 ~ days_to_discharge+dc_days_lastencounter,
+#                                     dc_death_90days==1 ~ days_to_discharge+dc_days_to_death,
+#                                     dc_death_90days==2 ~ days_to_discharge+days_to_lost_to_followup
+#                                     )) %>% select(time_90,dc_death_90days,days_to_discharge,dc_days_lastencounter,dc_days_to_death,days_to_lost_to_followup)
+# 
+# a <- qc_check(test)
+# a1 <- test %>% merge(a,by="subjectid",all.x = T) %>% mutate(# 0, No | 1, Yes | 2, Lost to follow up
+#                  time_90=case_when(dc_death_90days==0 ~ days_to_discharge+dc_days_lastencounter,
+#                                     dc_death_90days==1 ~ days_to_discharge+dc_days_to_death,
+#                                     dc_death_90days==2 ~ days_to_discharge+days_to_lost_to_followup
+#                                     )) %>% select(time_90,dc_death_90days,days_to_discharge,dc_days_lastencounter,dc_days_to_death,days_to_lost_to_followup,Checking )
+# 
+
+
+
+```
+
+
+
+
+
+#qc_check (correct)
+```{r,include=FALSE}
+
+qc_check<- function(data) {
+  # Initialize vectors to store results
+  id <- character()
+  checking <- character()
+  discont_day <- numeric()
+  
+  # Columns related to availability and their corresponding DC columns
+  dc_available_cols <- c(
+    "dc_available_albumin___999", 
+    "dc_available_inr___999",
+    "dc_available_scr___999",
+    "dc_available_sna___999",
+    "dc_available_tbili___999"
+  )
+  dc_cols <- c("dc_albumin", "dc_inr", "dc_scr", "dc_sna", "dc_tbili")
+  
+  # Get column names for discontinuation and SCr days
+  discont_cols <- grep("^discont_terli_day", names(data), value = TRUE)
+  scr_cols <- grep("^scr_terli_day", names(data), value = TRUE)
+  
+  # Other columns (exclude subjectid, discont columns, scr columns, and DC columns)
+  other_cols <- setdiff(
+    names(data),
+    c("subjectid", discont_cols, scr_cols, dc_available_cols, dc_cols,# Add these to exclude them from other_cols
+    "dc_death_90days",
+    "days_to_discharge",
+    "dc_days_lastencounter",
+    "dc_days_to_death",
+    "days_to_lost_to_followup",
+    "scr_day1_post_terli",
+"scr_day2_post_terli",
+"scr_day3_post_terli",
+"peakhospit_scr",
+"rrt",
+"dc_lt_90days",
+"dc_hd_status",
+"dc_scr90_value",
+"dc_terli_use"
+)
+  )
+  
+  # Loop through each row in the dataset
+  for (i in seq_len(nrow(data))) {
+    
+    current_id <- data$subjectid[i]
+    
+    # Extract values for "discont_terli_day" columns
+    discont_values <- data[i, discont_cols, drop = FALSE]
+    discont_names <- names(discont_values)
+    
+    # Extract values for "scr_terli_day" columns
+    scr_values <- data[i, scr_cols, drop = FALSE]
+    scr_names <- names(scr_values)
+    
+    # Extract values for other variables
+    other_values <- data[i, other_cols, drop = FALSE]
+    other_names <- names(other_values)
+    
+    # Temporary storage for the current row
+    current_checking <- character()
+    current_discont_day <- NA
+    
+    # --- 1) Identify the discontinuation day --------------------------------
+    for (j in seq_along(discont_values)) {
+      col_value <- discont_values[[j]]
+      
+      if (!is.na(col_value) && col_value == 1) {
+        # Extract the day number from the column name, e.g. "discont_terli_day5" -> 5
+        current_discont_day <- as.numeric(
+          gsub("discont_terli_day", "", discont_names[j])
+        )
+        break
+      } else if (is.na(col_value)) {
+        # If the value is NA, add the column name to current_checking
+        current_checking <- c(current_checking, discont_names[j])
+      }
+    }
+    
+    # --- 2) Check SCr columns up to the discontinuation day -----------------
+    if (!is.na(current_discont_day)) {
+      # If a discontinuation day was found, only check up to that day’s column
+      # Example: if day=5, we check scr_terli_day0 through scr_terli_day5
+      cols_to_check <- seq_len(current_discont_day + 1)  # day0-based indexing
+      cols_to_check <- cols_to_check[cols_to_check <= ncol(scr_values)]
+      
+      scr_subset_values <- scr_values[, cols_to_check, drop = FALSE]
+      scr_subset_names <- names(scr_subset_values)
+      
+      # Flag missing SCr in that subset
+      for (k in seq_along(scr_subset_values)) {
+        if (is.na(scr_subset_values[[k]])) {
+          current_checking <- c(current_checking, scr_subset_names[k])
+        }
+      }
+    } else {
+      # If we have no discontinuation day, check all SCr columns for missing
+      for (k in seq_along(scr_values)) {
+        if (is.na(scr_values[[k]])) {
+          current_checking <- c(current_checking, scr_names[k])
+        }
+      }
+    }
+    
+    # --- 3) Check the availability columns and their corresponding DC columns
+    for (m in seq_along(dc_available_cols)) {
+      avail_val <- data[[dc_available_cols[m]]][i]
+      
+      # If availability is NA => flag both availability col & dc_* col
+      if (is.na(avail_val)) {
+        current_checking <- c(
+          current_checking, 
+          dc_available_cols[m],  # e.g. "dc_available_albumin___999"
+          dc_cols[m]             # e.g. "dc_albumin"
+        )
+        next
+      }
+      
+      # If availability is 0 => the corresponding dc_* should not be NA
+      if (avail_val == 0) {
+        dc_value <- data[[dc_cols[m]]][i]
+        if (is.na(dc_value)) {
+          # We expected a value here, but it's missing
+          current_checking <- c(current_checking, dc_cols[m])
+        }
+      }
+    }
+    
+    # --- 4) Check other variables for missing values ------------------------
+    for (l in seq_along(other_values)) {
+      if (is.na(other_values[[l]])) {
+        current_checking <- c(current_checking, other_names[l])
+      }
+    }
+    
+    # --- 5) Simplified logic for dc_death_90days checks ---------------------
+    # For dc_death_90days = 0, 1, or 2, we only check two variables each time.
+    dc_death_90days_val <- data[["dc_death_90days"]][i]
+    days_to_discharge_val <- data[["days_to_discharge"]][i]
+    dc_days_lastencounter_val <- data[["dc_days_lastencounter"]][i]
+    dc_days_to_death_val <- data[["dc_days_to_death"]][i]
+    days_to_lost_to_followup_val <- data[["days_to_lost_to_followup"]][i]
+    
+    # Check if dc_death_90days or days_to_discharge is NA
+   if (is.na(dc_death_90days_val) || is.na(days_to_discharge_val)) {
+      current_checking <- c(
+        current_checking, 
+        "dc_death_90days", 
+        "days_to_discharge",
+        "dc_days_lastencounter",
+        "dc_days_to_death",
+        "days_to_lost_to_followup"
+      )
+    } 
+    # If dc_death_90days is not NA, check the relevant pair of variables
+    else  {
+      if (dc_death_90days_val == 0) {
+        # Must check: days_to_discharge (already done above) + dc_days_lastencounter
+        if (is.na(dc_days_lastencounter_val)) {
+          current_checking <- c(current_checking, "dc_days_lastencounter")
+        }
+      } 
+      else if (dc_death_90days_val == 1) {
+        # Must check: days_to_discharge (already done above) + dc_days_to_death
+        if (is.na(dc_days_to_death_val)) {
+          current_checking <- c(current_checking, "dc_days_to_death")
+        }
+      } 
+      else if (dc_death_90days_val == 2) {
+        # Must check: days_to_discharge (already done above) + days_to_lost_to_followup
+        if (is.na(days_to_lost_to_followup_val)) {
+          current_checking <- c(current_checking, "days_to_lost_to_followup")
+        }
+      }
+    }
+    
+    # --- 6) Store results if any issues or we have a Discont_Day -------------
+    if (length(current_checking) > 0 || !is.na(current_discont_day)) {
+      id <- c(id, current_id)
+      checking <- c(checking, paste(current_checking, collapse = ", "))
+      discont_day <- c(discont_day, current_discont_day)
+    }
+  }
+  
+  # Combine the results into a data frame
+  results <- data.frame(
+    subjectid = id, 
+    Checking = checking, 
+    Discont_Day = discont_day,
+    stringsAsFactors = FALSE
+  )
+  
+  # Return the results
+  return(results)
+}
+
+
+```
+
+
+
+# Final data 1
+```{r,include=FALSE}
+qc_check_data <- qc_check(all_selected)
+final_master <- all %>% merge(qc_check_data %>% select(subjectid,Discont_Day),all.x = T,by="subjectid") 
+
+# Create the Removed_id vector
+removed_id <- c(
+  "BID-PTD-001", "BID-PTD-002", "BID-PTD-003", "BID-PTD-004", "BID-PTD-005", 
+  "BID-PTD-006", "BID-PTD-007", "MAYO-5", "MAYO-6", "MAYO-7", "MAYO-8", 
+  "MAYO-9", "MAYO-10", "MAYO-11", "MAYO-12", "MAYO-13", "MAYO-14", 
+  "MAYO-15", "MAYO-16", "MAYO-17", "MAYO-18", "MAYO-19", "MAYO-20", 
+  "MAYO-21", "MAYO-22", "MAYO-23", "MAYO-24", "MAYO-25", "MAYO-26", 
+  "MAYO-27", "MAYO-28", "MMC-005", "MMC-006", "MMC-007"
+)
+
+# Create the Subgroup_id vector
+subgroup_id <- c(
+  "BID-005R1", "BID-005R2", "BID-013R1", "MGH-001R1", "MGH-014R1", 
+  "MGH-014R2", "MGH-026R1", "NWM-014R1"
+)
+
+subgroup_master <- final_master %>% filter(subjectid %in% subgroup_id)
+final_master <- final_master %>% filter(!subjectid %in% removed_id,!subjectid %in% subgroup_id)
+
+
+
+
+
+#### 1 final_master
+
+
+df_long <- final_master %>% 
+  pivot_longer(
+    cols = starts_with("map_terli_day"), 
+    names_to = c("temp", "day", "time"),    # we will capture these parts
+    names_pattern = "^(map_terli)_day(\\d+)_time(\\d+)$", # regex to split
+    values_to = "map"
+  ) %>%
+  # 2) Convert day/time to numeric so we can sort properly
+  mutate(
+    day = as.numeric(day),
+    time = as.numeric(time)
+  ) %>%
+  select(-temp)  # 'temp' is just the literal "map_terli", can drop if not needed
+
+# 3) Calculate the mean for each ID and day (across times 0–3, etc.)
+df_summary <- df_long %>%
+  group_by(subjectid, day) %>%
+  summarise(
+    mean_map = mean(map, na.rm = TRUE),
+    sd_map   = sd(map, na.rm = TRUE),
+    .groups  = "drop"
+  )
+map <- df_summary %>% filter(day==0) %>% select(subjectid,mean_map) %>% rename(mean_map_day0=mean_map)
+
+dosechange_days  <- grep("dosechange_terli_day", str_sort(names(all)), value = TRUE)
+dosechange_days_numbers <- as.numeric(sub(".*_day(\\d+)$", "\\1", dosechange_days))
+sorted_dosechange_days <- dosechange_days[order(dosechange_days_numbers)]
+sorted_dosechange_days <- sorted_dosechange_days[sorted_dosechange_days != "dosechange_terli_day1"]
+
+
+
+create_dosechange_day <- function(df) {
+  df$dosechange_day <- apply(df, 1, function(row) {
+    for (i in 2:13) {
+      varname <- paste0("dosechange_terli_day", i)
+      if (!is.na(row[[varname]]) && row[[varname]] == 1) {
+        return(i)
+      }
+    }
+    return(NA)  # Return NA if no change is found
+  })
+  return(df)
+}
+
+final_master <- create_dosechange_day(final_master)
+test <- create_dosechange_day(final_master %>% select(sorted_dosechange_days))
+# table1(~as.factor(dosechange_day),final_master)
+
+# time to death 
+
+ckd_epi_gfr <- function(creat, male, age) {
+  k <- ifelse(male == 1, 0.9, 0.7)
+  a <- ifelse(male == 1, -0.302, -0.241)
+  m <- ifelse(male == 1, 1, 1.012)
+  
+  ratio <- creat / k
+  
+  gfr <- 142 * 
+         (pmin(ratio, 1))^a * 
+         (pmax(ratio, 1))^-1.2 * 
+         0.9938^age * 
+         m
+  
+  return(gfr)
+}
+
+# 
+# days_to_discharge > 90days  
+# 
+#      1.disposition(death 5 alive: other )     dc_death_90days: 
+# time_to_death-days_to_terli_initiation_day0: 1.days_to_discharge(death ) 2.time = days_to_discharge + dc_days_to_death 3.days_to_discharge +days_to_lost_to_followup 
+# status_death: 1.disposition(discharge)       2.dc_death_90days=1.  3. disposition != 5 & dc_death_90days=2  
+# select(disposition,dc_death_status,days_to_discharge,dc_death_90days,after_discharge_90days_death_status,dc_days_to_death,days_to_terli_initiation_day0 ) 
+
+final_master <- final_master %>% mutate(
+  dc_death_status=if_else(disposition==5,1,0),
+  after_discharge_90days_death_status=if_else(dc_death_90days==1,1,0),
+  dc_days_to_death=if_else(dc_death_90days==2|dc_death_90days==0,90,dc_days_to_death)
+  ) %>% 
+  mutate(
+    days_to_lost_to_followup =if_else(is.na(days_to_lost_to_followup),0,days_to_lost_to_followup),
+  time_to_death=case_when(
+    dc_death_status==1 ~ days_to_discharge,
+    dc_death_status==0 & dc_death_90days==2~ days_to_discharge+days_to_lost_to_followup,
+    dc_death_status==0 & dc_death_90days!=2~  days_to_discharge+dc_days_to_death
+  )) %>% 
+  mutate(time_to_death_status=case_when(dc_death_status==1 ~ 1,
+                                               dc_death_status==0 & after_discharge_90days_death_status==1 ~ 1,
+                                               TRUE ~0)) %>% mutate(time_to_death=time_to_death-days_to_terli_initiation_day0)
+
+
+```
+
+
+# Final data 2
+```{r,include=FALSE}
+final_master <- final_master %>% 
+  filter(!is.na(Discont_Day)) %>%
+  # filter(scr_terli_day0>=1.5) %>% 
+  rowwise() %>% 
+  mutate(
+    last_scr = get(paste0("scr_terli_day", Discont_Day)),  # Extract last SCr based on discontinuation day
+    last_scr_2= get(paste0("scr_terli_day", Discont_Day-1)),
+    discont_reason_terli = get(paste0("discont_reason_terli_day", Discont_Day)),
+    terli_ae_abdpain = get(paste0("terli_ae_abdpain_day", Discont_Day)),
+    terli_ae_nausea = get(paste0("terli_ae_nausea_day", Discont_Day)),
+    terli_ae_diarrhea = get(paste0("terli_ae_diarrhea_day", Discont_Day)),
+    terli_ae_volover = get(paste0("terli_ae_volover_day", Discont_Day)),
+    terli_ae_brady = get(paste0("terli_ae_brady_day", Discont_Day)),
+    terli_other = get(paste0("terli_other_day", Discont_Day))
+  ) %>% 
+  merge(map,by="subjectid",all.x = T) %>% 
+  # lowest_creatinine
+  mutate(lowest_creatinine=pmin(last_scr_2, last_scr, scr_day1_post_terli, na.rm = TRUE)) %>% 
+  # HRS_reversal_new
+  mutate(HRS_reversal_new = case_when(
+          lowest_creatinine <= 1.5 & (scr_terli_day0 - lowest_creatinine) >= 0.3 ~ 1,  # HRS_reversal = 1
+          TRUE ~ 0  )) %>%  
+  
+  mutate(scr_terli_day0=ifelse(scr_terli_day0>100,scr_terli_day0/100,scr_terli_day0),
+        fio2_terli_day0=ifelse(fio2_terli_day0 > 1,fio2_terli_day0/100,fio2_terli_day0)) %>% 
+  
+  # transplant_lt
+  mutate(transplant_lt=
+        case_when(lt_during_hospital == 1 | slkt_during_hospital== 1 ~ 1,
+              dc_lt_90days == 1 | dc_lt_90days == 2 ~ 2,
+              lt_during_hospital == 0 & lt_status_1yr == 1 & days_to_lt_1yr > 90 ~ 3,
+              TRUE ~ 0),
+        time_to_transplant = case_when(
+          transplant_lt == 1 & !is.na(days_to_lt) ~ days_to_lt,
+          transplant_lt == 1 & is.na(days_to_lt) ~ days_to_discharge - days_to_lt_1yr,
+          transplant_lt==2 | transplant_lt== 3 ~ days_to_discharge+days_to_lt_1yr,
+          TRUE ~ NA_real_),
+        time_to_transplant =time_to_transplant -days_to_terli_initiation_day0) %>% 
+  mutate(transplant_lt_status=if_else(transplant_lt==0,0,2)) %>%
+           mutate(time_to_transplant_cmp=if_else(is.na(time_to_transplant),999,time_to_transplant)) %>% 
+  # transplant_slkt
+  mutate(transplant_slkt=case_when(slkt_during_hospital == 1|dc_lt_90days == 2 | lt_type_1yr == 2 ~ 1,
+                                   TRUE ~ 0)) %>% 
+  # baseline_scr_calculated and baseline_scr_new
+  mutate(
+    egfr=75,
+    baseline_scr_calculated=mapply(estimate_creatinine, egfr, age, sex_male),
+    baseline_scr_new = case_when(baseline_scr_days_to_admit != 0 & !is.na(baseline_scr) ~ baseline_scr,
+                                 baseline_scr_days_to_admit == 0 & !is.na(baseline_scr_120to365_value)~ baseline_scr_120to365_value,
+                                 baseline_scr_days_to_admit == 0 & is.na(baseline_scr_120to365_value) ~ pmin(baseline_scr_calculated,scr_admit)),
+      baseline_scr_new_2 = case_when(baseline_scr_days_to_admit != 0 & !is.na(baseline_scr) ~ baseline_scr,
+                                 baseline_scr_days_to_admit == 0 & !is.na(baseline_scr_120to365_value)~ baseline_scr_120to365_value),
+      eGFR=mapply(ckd_epi_gfr, baseline_scr_new_2,sex_male,age ))%>% 
+ # ratio and delta for akin 
+   mutate(ratio=round(scr_terli_day0 / baseline_scr_new,4),
+         delta=round(scr_terli_day0 - baseline_scr_new,4),
+         akin = case_when(( ratio>=1.5 & ratio < 2) | (ratio<1.5 & delta >0.3 )~ 1,
+                          (ratio >= 2 & ratio < 3) ~ 2,
+                          ratio >= 3  ~ 3, # check 3.0
+                           TRUE ~ NA),
+         akin = ifelse(scr_terli_day0>=4,3,akin)) %>% 
+  # first non NA 
+  mutate(bili_cal=coalesce(bili_terli_day0, tbili_admit, mean(bili_terli_day0,na.rm = T))) %>% 
+  # clif_c_score
+  mutate(clif_c_score= mapply(calculate_clif_c_score, tbili_admit, scr_terli_day0, he_terli_day0, 
+                       inr_terli_day0, map_terli_day0_time0, norepi_terli_day0, fio2_terli_day0, spo2_terli_day0, 
+                       age, wbc_terli_day0)) %>% 
+  # aclf_grade
+  mutate(aclf_grade= mapply(calculate_organ_failures,bili_terli_day0, he_terli_day0, inr_terli_day0, 
+                                     map_terli_day0_time0, fio2_terli_day0, 
+                                     spo2_terli_day0, scr_terli_day0)) %>% 
+  # child_pugh_score
+  mutate(child_pugh_score=mapply(child_pugh_score,bili_terli_day0, alb_terli_day0, inr_terli_day0, ascites_aki, he_terli_day0)) %>%  
+  
+  # discont_ratio and delta
+  mutate(
+    discont_ratio=round(lowest_creatinine / baseline_scr_new,4),
+    discont_delta= round( lowest_creatinine - baseline_scr_new,4),
+ # discont_aki_stage
+    discont_aki_stage = case_when(
+      is.na(discont_ratio) | is.na(discont_delta) ~ NA_real_,
+      discont_ratio < 1.5 & discont_delta < 0.3 ~ 0,
+      
+      (discont_ratio >= 1.5 & discont_ratio < 2) |  (discont_ratio < 1.5 & discont_delta >= 0.3 )~ 1,
+      
+      discont_ratio >= 2 & discont_ratio < 3 ~ 2,
+      
+      discont_ratio >= 3   ~ 3),
+    discont_aki_stage = ifelse(lowest_creatinine >=4,3,discont_aki_stage),
+ 
+    difference = round(akin - discont_aki_stage,0),
+    # 3) AKI_responders classification
+ 
+    hrs_responders = case_when(
+      # is.na(akin) | is.na(lowest_creatinine) ~ "Missing",
+      difference <= 0 ~ 0,
+      difference > 0 & round(lowest_creatinine - baseline_scr_new,2) > 0.3 ~ 1,
+      round(lowest_creatinine - baseline_scr_new,2) <=0.3  ~ 2),
+ 
+    hrs_responders_cat_2 =ifelse(hrs_responders==0,0,1)) 
+
+
+
+  final_master <- final_master %>% 
+  mutate(
+    creatinine_adj_day0 = case_when(
+      scr_terli_day0 < 1 ~ 1,
+      scr_terli_day0 >= 4 ~ 4,
+      TRUE ~ scr_terli_day0
+    ),
+    day0_meld = round(9.57 * log(creatinine_adj_day0) + 3.78 * log(bili_terli_day0) + 11.20 * log(inr_terli_day0) + 6.43),
+    day0_meld_na = round(day0_meld + 1.32 * (137 - pmin(pmax(na_terli_day0, 125), 137)) - (0.033 * day0_meld * (137 - pmin(pmax(na_terli_day0, 125), 137)))),
+    day0_meld_na = ifelse(day0_meld > 11, day0_meld_na, NA), # MELDNa applied only if MELD > 11
+    female_factor = if_else(sex_male == 0, 1.33, 0), # Assuming a column 'sex' is present, adjust accordingly
+    day0_meld_3 = round(
+      female_factor +
+      4.56 * log(bili_terli_day0) +
+      0.82 * (137 - na_terli_day0) -
+      0.24 * (137 - na_terli_day0) * log(bili_terli_day0) +
+      9.09 * log(inr_terli_day0) +
+      11.14 * log(creatinine_adj_day0) +
+      1.85 * (3.5 - alb_terli_day0) -
+      1.83 * (3.5 - alb_terli_day0) * log(creatinine_adj_day0) +
+      6
+    ),
+    admit_creatinine_adj= case_when(
+      scr_admit < 1 ~ 1,
+      scr_admit >= 4 ~ 4,
+      TRUE ~ scr_admit
+    ),
+    admit_meld = round(9.57 * log(admit_creatinine_adj) + 3.78 * log(tbili_admit) + 11.20 * log(inr_admit) + 6.43),
+    admit_meld_na = round(admit_meld + 1.32 * (137 - pmin(pmax(sodium_admit, 125), 137)) - (0.033 * admit_meld * (137 - pmin(pmax(sodium_admit, 125), 137)))),
+    admit_meld_na = ifelse(admit_meld > 11, admit_meld_na, NA), # MELDNa applied only if MELD > 11
+    female_factor = if_else(sex_male == 0, 1.33, 0), # Assuming a column 'sex' is present, adjust accordingly
+    admit_meld_3 = round(
+      female_factor +
+      4.56 * log(tbili_admit) +
+      0.82 * (137 - sodium_admit) -
+      0.24 * (137 - sodium_admit) * log(tbili_admit) +
+      9.09 * log(inr_admit) +
+      11.14 * log(admit_creatinine_adj) +
+      1.85 * (3.5 - albumin_admit) -
+      1.83 * (3.5 - albumin_admit) * log(admit_creatinine_adj) +
+      6
+    ))%>%mutate(
+    liver_f = ifelse(!is.na(bili_terli_day0) & bili_terli_day0 >= 6, 1, 0),
+    brain_f = ifelse(!is.na(he_terli_day0) & he_terli_day0 > 1, 1, 0),
+    coagulation_f = ifelse(!is.na(inr_terli_day0) & inr_terli_day0 >= 2, 1, 0),
+    circulatory_f = ifelse(!is.na(map_terli_day0_time0) & map_terli_day0_time0 < 70, 1, 0),
+    respiratory_f = ifelse(
+      !is.na(fio2_terli_day0) & fio2_terli_day0 != 0 &
+      !is.na(spo2_terli_day0) & (spo2_terli_day0 / fio2_terli_day0) <= 357,
+      1, 0
+    ),
+    kidney_f = ifelse(!is.na(scr_terli_day0) & scr_terli_day0 >= 1.5, 1, 0),
+    organ_failure_sum = liver_f + brain_f + coagulation_f + circulatory_f + respiratory_f + kidney_f
+  ) %>% mutate(rrt_2=ifelse(rrt==2,0,rrt)) %>% mutate(aclf_grade=if_else(aclf_grade>3,3,aclf_grade)) %>% 
+  
+  
+  # criteria
+  mutate(
+    criteria_1 = ifelse((total_terli_day1 == 0 | is.na(total_terli_day1)) & discont_terli_day1 == 1, 1, 0),
+    criteria_2 = ifelse(aclf_grade >= 3, 1, 0),
+    criteria_3 = ifelse(scr_terli_day0 >= 5, 1, 0),
+    criteria_4 = case_when(spo2_terli_day0 /fio2_terli_day0 <357 ~1,
+                           spo2_terli_day0 /fio2_terli_day0 >=357 ~0),
+    criteria_4 =ifelse(is.na(criteria_4),0,criteria_4),
+    criteria_5 =ifelse(admit_meld_3>35,1,0), # updated 01/28
+    HRS_criteria_meld=if_else((criteria_2 == 1 | criteria_3 == 1 | criteria_4 == 1|criteria_5),1,0),# updated 01/28
+    HRS_criteria_3 = if_else((criteria_2 == 1 | criteria_3 == 1 | criteria_4 == 1),1,0),
+  
+    
+  #  HRS_Criteria
+    HRS_Criteria = case_when(
+      criteria_1 == 0 & criteria_2 == 0 & criteria_3 == 0 & criteria_4 == 0 ~ 0,
+      criteria_1 == 1 | criteria_2 == 1 | criteria_3 == 1 | criteria_4 == 1 ~ 1 ))
+   
+    
+    
+ final_master <- final_master %>% rowwise() %>%  # Ensure row-wise operations
+  mutate(
+    last_scr = get(paste0("scr_terli_day", Discont_Day)),  
+    
+    discont_reason_terli = get(paste0("discont_reason_terli_day", Discont_Day)),
+    terli_ae_abdpain = get(paste0("terli_ae_abdpain_day", Discont_Day)),
+    terli_ae_nausea = get(paste0("terli_ae_nausea_day", Discont_Day)),
+    terli_ae_diarrhea = get(paste0("terli_ae_diarrhea_day", Discont_Day)),
+    terli_ae_volover = get(paste0("terli_ae_volover_day", Discont_Day)),
+    terli_ae_brady = get(paste0("terli_ae_brady_day", Discont_Day))) %>% 
+   mutate(terli_7 =if_else(discont_reason_terli==7,1,0),
+               terli_8 =if_else(discont_reason_terli==8,1,0)) %>% 
+   mutate(terli_ae_respfail=if_else(terli_7==1|terli_ae_volover==1,1,0)) %>%
+    mutate(across(
+      c(terli_ae_abdpain, terli_ae_nausea, terli_ae_diarrhea, 
+        terli_ae_volover, terli_ae_brady,terli_7,terli_8,terli_ae_respfail),
+      ~ if_else(is.na(.x), 0, .x)
+    )) %>%  mutate(
+    any_ae = if_else(
+      terli_ae_abdpain == 1 | terli_ae_nausea == 1 | terli_ae_diarrhea == 1 | 
+      terli_ae_volover == 1 | terli_ae_brady == 1 | terli_7 == 1 | 
+      terli_8 == 1 | terli_ae_respfail == 1,
+      1,  # if any condition is TRUE, set to 1
+      0   # else, set to 0
+    )
+  ) %>% mutate(listed_transplant=if_else(lt_eval==2 | lteval_listingstatus==1,1,0),listed_transplant=ifelse(is.na(listed_transplant),0,listed_transplant)) 
+ 
+
+
+ 
+ dosechange_cols <- c("dosechange_terli_day2", "dosechange_terli_day3",
+                     "dosechange_terli_day4", "dosechange_terli_day5",
+                     "dosechange_terli_day6", "dosechange_terli_day7",
+                     "dosechange_terli_day8", "dosechange_terli_day9",
+                     "dosechange_terli_day10", "dosechange_terli_day11",
+                     "dosechange_terli_day12")
+
+ final_master <- final_master %>% 
+  rowwise() %>%
+  mutate(
+    dosechange_status = if_else(any(c_across(all_of(dosechange_cols)) == 1, na.rm = TRUE), 1, 0),
+    time_to_dosechange = if_else(
+      dosechange_status == 1, 
+      min(which(c_across(all_of(dosechange_cols)) == 1)) + 1,  # +1 to account for the start at day2
+      NA_integer_
+    )
+  ) %>%
+  ungroup()
+ 
+
+ 
+ 
+
+ 
+final_master <- final_master %>% 
+   mutate(time_to_death_90days=case_when(time_to_death_status==1 & time_to_death <= 90 ~ time_to_death,
+                                         time_to_death_status==1 & time_to_death > 90 ~ 90,
+                                         time_to_death_status==0 & time_to_death <= 90 ~ time_to_death,
+                                         time_to_death_status==0 & time_to_death > 90 ~ 90), 
+          time_to_death_status_90days=case_when(time_to_death_status==1 & time_to_death <= 90 ~ 1,
+                                         time_to_death_status==1 & time_to_death > 90 ~ 0,
+                                         time_to_death_status==0 & time_to_death <= 90 ~ 0,
+                                         time_to_death_status==0 & time_to_death > 90 ~ 0),
+    
+           time_to_transplant_90days=case_when(transplant_lt_status==2 & time_to_transplant_cmp <= 90 ~ time_to_transplant_cmp,
+                                         transplant_lt_status==2 & time_to_transplant_cmp > 90 ~ 90,
+                                         transplant_lt_status==0 & time_to_transplant_cmp <= 90 ~ time_to_transplant_cmp,
+                                         transplant_lt_status==0 & time_to_transplant_cmp > 90 ~ 90),
+          time_to_transplant_status_90days=case_when(transplant_lt_status==2 & time_to_transplant_cmp <= 90 ~ 2,
+                                         transplant_lt_status==2 & time_to_transplant_cmp > 90 ~ 0,
+                                         transplant_lt_status==0 & time_to_transplant_cmp <= 90 ~ 0,
+                                         transplant_lt_status==0 & time_to_transplant_cmp > 90 ~ 0),
+                   time_to_death_90days_cmp=pmin(time_to_death_90days,time_to_transplant_90days),
+                time_to_death_status_90days_cmp=case_when(time_to_death_90days<=time_to_transplant_90days ~ time_to_death_status_90days,
+                                                          time_to_death_90days>time_to_transplant_90days ~ time_to_transplant_status_90days)
+          
+          ) 
+            
+   
+final_master <- final_master %>% mutate(fena=(100 * (scr_admit * ua_na_value_hrs) / (sodium_admit * ua_cr_value_hrs)),
+                                        urine_pc=uaprotein_hrs/ua_cr_value_hrs) %>% 
+  mutate(hrs_rebound=if_else(scr_day1_post_terli - last_scr >=0.3,1,0)) %>% 
+  mutate(admit_meld_3_raw=admit_meld_3) %>% 
+  mutate(admit_meld_3 = if_else(
+    is.na(admit_meld_3),
+    median(admit_meld_3, na.rm = TRUE),
+    admit_meld_3
+  )) %>% mutate(race_2=if_else(race==1|is.na(race),1,0),hispanic=if_else(is.na(hispanic),0,hispanic)) %>% mutate(transplant_outcome=if_else(time_to_transplant_status_90days==2,1,0)) %>% mutate(ckd_baseline=if_else(eGFR<60,1,0)) %>%   
+  mutate(total_albumin = rowSums(
+    select(., albumintotal_terli_day0, albumintotal_terli_day1, 
+           albumintotal_terli_day2, albumintotal_terli_day3,
+           albumintotal_terli_day4, albumintotal_terli_day5,
+           albumintotal_terli_day6, albumintotal_terli_day7,
+           albumintotal_terli_day8, albumintotal_terli_day9,
+           albumintotal_terli_day10, albumintotal_terli_day11,
+           albumintotal_terli_day12, albumintotal_terli_day13),
+    na.rm = TRUE
+  ))
+  
+
+final_master <- final_master %>% mutate(clif_c_score_new=if_else(is.na(clif_c_score),median(clif_c_score,na.rm=T),clif_c_score))
+
+```
+
+
+
+
+```{r,include=FALSE}
+# Vector of categorical variables
+
+
+
+categorical_vars <- c(
+  "admit_admitservice",
+  "admit_admitroute",
+  "sex_male",
+  "race",
+  "hispanic",
+  "insurance_type",
+  "cirrhosis_etiology",
+  "etoh_hepatitis",
+  "hegrade_admit",
+  "admit_ascites",
+  "htn_medical_hx",
+  "dm_medical_hx",
+  "ckd_medical_hx",
+  "cad_medical_hx",
+  "nsbb_preadmission",
+  "nsbb_type_preadmission",
+  "ace_arb_preadmission",
+  "nsaid_preadmission",
+  "diuretics_preadmission",
+  "sbp_ppx_preadmission",
+  "lactulose_preadmission",
+  "rifaximin_preadmission",
+  "mido_preadmission",
+  "ascites_previous_comp",
+  "refascites_previous_comp",
+  "he_previous_comp",
+  "sbp_previous_comp",
+  "nonsbp_previous_comp",
+  "phtn_bleed_previous_comp",
+  "hcc_previous_comp",
+  "tips_previous_comp",
+  "baseline_scr_outpt",
+  "aki_previous_90days",
+  "transfer_aki",
+  "aki_precipitant_nsbpinf",
+  "he_aki",
+  "rrt_aki",
+  "mv_aki",
+  "pressors_aki",
+  "chest_imaging",
+  "chest_imaging_pulmedema",
+  "chest_imaging_effusion",
+  "ecg",
+  "echo",
+  "albumin_before_terli",
+  "crystalloid_before_terli",
+  "nsbb_before_terli",
+  "mido_before_terli",
+  "oct_before_terli",
+  "ne_before_terli",
+  "gihep_consult",
+  "neph_consult",
+  "pall_consult",
+  "code_status",
+  "ua_hrs",
+  "ua_na_hrs",
+  "ua_cr_hrs",
+  "ua_urea_hrs",
+  "ua_granularcasts_hrs",
+  "ua_epi_cells_hrs",
+  "location_terli_day0",
+  "terli_route_day0",
+  "tele_terli_day0",
+  "he_terli_day0",
+  "infection_terli_day0",
+  "typeinfection_terli_day0",
+  "hrs_responders",
+  "dosechange_terli_day1",
+  "dosechange_terli_day2",
+  "dosechange_terli_day3",
+  "dosechange_terli_day4",
+  "dosechange_terli_day5",
+  "dosechange_terli_day6",
+  "dosechange_terli_day7",
+  "dosechange_terli_day8",
+  "dosechange_terli_day9",
+  "dosechange_terli_day10",
+  "dosechange_terli_day11",
+  "dosechange_terli_day12",
+  "discont_aki_stage",
+  "aclf_grade",
+  "HRS_Criteria",
+  "criteria_1",
+  "criteria_2",
+  "criteria_3",
+  "criteria_4",
+  "akin",
+  "transplant_slkt",
+  "transplant_lt",
+  "rrt",
+  "rrt_2",
+  "rrt_modality",
+  "rrt_continuous",
+  "hd_discharge",
+  "disposition",
+  "liver_f",
+  "brain_f",
+  "coagulation_f",
+  "circulatory_f",
+  "respiratory_f",
+  "kidney_f",
+  "baseline_scr_120to365",
+  "aki_events_previous90days",
+  "prbc_trans_before_terli",
+  "time_to_death_status",
+   "terli_ae_abdpain", 
+    "terli_ae_nausea" ,
+    "terli_ae_diarrhea" ,
+    "terli_ae_volover" ,
+    "terli_ae_brady" ,
+    "terli_7",
+    "terli_8",
+  "terli_ae_respfail","any_ae","listed_transplant","dosechange_status","hrs_rebound","race_2","HRS_reversal_new",
+  "hrs_responders_cat_2","time_to_death_status_90days","time_to_death_status_90days_cmp","ckd_baseline","HRS_criteria_3"
+)
+
+
+# Vector of numerical variables
+numerical_vars <- c(
+  "age",
+  "scr_admit",
+  "tbili_admit",
+  "inr_admit",
+  "sodium_admit",
+  "albumin_admit",
+  "lactate_admit",
+  "nsbb_dose_preadmission",
+  "mido_dose_preadmission",
+  "baseline_scr",
+  "baseline_scr_days_to_admit",
+ 
+
+  "transfer_aki_days_toadmit",
+  "days_admit_to_aki",
+  "aki_weight",
+  "aki_height",
+  "aki_hr",
+  "aki_sbp",
+  "aki_dbp",
+  "aki_map",
+  "aki_pao2",
+  "fio2_aki",
+  "scr_aki",
+  "bun_aki",
+  "albumin_aki",
+  "inr_aki",
+  "wbc_aki",
+  "plt_aki",
+  "ecg_qtc",
+  "days_to_echo",
+  "echo_ef",
+  "echo_lateral_e",
+  "echo_trpeak",
+  "echo_gls",
+  "echo_earatio",
+  "echo_rvsp",
+  "echo_pasp",
+  "echo_lavi",
+  "echo_tr",
+  "totalalbumin_before_terli",
+  "albvolume_before_terli",
+  "saline_vol_before_terli",
+  "lr_volume_before_terli",
+  "other_cryst_before_terli",
+
+  "prbc_qaunt_before_terli",
+  "totalvolume_before_terli",
+  "total_uo_before_terli",
+  "days_first_mido_before_terli",
+  "days_total_mido_before_terli",
+  "mido_maxdose_before_terli",
+  "days_first_oct_before_terli",
+  "days_total_oct_before_terli",
+  "oct_maxdose_before_terli",
+  "days_first_ne_before_terli",
+  "days_total_ne_before_terli",
+  "days_to_gihep_consult",
+  "days_to_neph_consult",
+  "days_to_pall_consult",
+  "days_ua_hrs",
+  "days_ua_na_hrs",
+  "ua_na_value_hrs",
+  "days_ua_cr_hrs",
+  "ua_cr_value_hrs",
+  "days_ua_urea_hrs",
+  "ua_urea_value_hrs",
+  "feurea_hrs",
+  "ua_rbc_hrs",
+  "uaprotein_hrs",
+  "temp_terli_day0",
+  "hr_terli_day0",
+  "pao2_terli_day0",
+  "fio2_terli_day0",
+  "sbp_terli_day0_time0",
+  "map_terli_day0_time0",
+  "chloride_terli_day0",
+  "bicarb_terli_day0",
+  "scr_terli_day0",
+  "bun_terli_day0",
+  "ast_terli_day0",
+  "alt_terli_day0",
+  "bili_terli_day0",
+  "alb_terli_day0",
+  "inr_terli_day0",
+  "wbc_terli_day0",
+  "hgb_terli_day0",
+  "Discont_Day",
+  "na_terli_day0",
+  "days_to_terli_initiation_day0",
+  "clif_c_score",
+  "admit_meld",
+  "admit_meld_na",
+  "admit_meld_3",
+  "admit_meld_3_raw",
+  "day0_meld",
+  "day0_meld_na",
+  "day0_meld_3",
+  
+  "time_to_transplant",
+  "time_to_death_status",
+  "time_to_death_90days",
+  "cystatinc_admit","cystatinc_aki","cystatinc_terli_day0",
+  "urine_pc","fena","fena_hrs","time_to_death_90days","total_albumin","mido_maxdose_before_terli "
+)
+
+
+all_vars <- c(numerical_vars,categorical_vars)
+
+final_master$mido_maxdose_before_terli <- as.numeric(final_master$mido_maxdose_before_terli)
+final_master <- final_master %>% mutate_at(categorical_vars,as.factor)
+
+# write.xlsx(as.data.frame(final_master),"/Users/to909/Desktop/Terlipressin/final_master_0508.xlsx",showNA = F,row.names= F)
+# write.xlsx(as.data.frame(final_master),"/Users/to909/Desktop/Terlipressin/final_master_01282026.xlsx",showNA = F,row.names= F)
+```
+
+
+
+# Table 1 HRS_reversal_new
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+
+create_table_one <- function(all_vars,
+                             cat_vars,
+                             data,
+                             strata,
+                             output) {
+  
+  numerical_vars=setdiff(all_vars,cat_vars)
+  
+  # 1) Generate the table
+  T1_after <- tableone::CreateTableOne(
+    vars       = all_vars,
+    strata     = strata,        # variable to stratify by
+    data       = data,
+    factorVars = cat_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+  T1_after_print <-
+    print(
+      T1_after,
+      showAllLevels = T,
+      nonnormal = numerical_vars,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE
+    )
+  
+
+  # 3) Write the table as CSV
+  write.csv(T1_after_print, file = output)
+}
+
+
+
+```
+
+# table1_check_0508_HRS_reversal_new
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+all_vars <- unique(all_vars)
+categorical_vars <- unique(categorical_vars)
+
+create_table_one(
+  all_vars = all_vars,
+  cat_vars = categorical_vars,
+  data     = final_master,
+  strata   = "HRS_reversal_new",
+  output   = "/Users/to909/Desktop/Tables/table1_check_0508_HRS_reversal_new.csv"
+)
+
+
+```
+
+# table1_check_0508_hrs_responders
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+create_table_one(
+  all_vars = all_vars,
+  cat_vars = categorical_vars,
+  data     = final_master,
+  strata   = "hrs_responders",
+  output   = "/Users/to909/Desktop/Tables/table1_check_0508_hrs_responders.csv"
+
+)
+
+
+
+```
+
+
+
+
+# table1_check_0508_hrs_responders_cat_2
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+create_table_one(
+  all_vars = all_vars,
+  cat_vars = categorical_vars,
+  data     = final_master,
+  strata   = "hrs_responders_cat_2",
+  output   = "/Users/to909/Desktop/Tables/table1_check_0508_hrs_responders_cat_2.csv"
+)
+
+
+```
+
+# table1_time_to_death_status_90days
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+create_table_one(
+  all_vars = all_vars,
+  cat_vars = categorical_vars,
+  data     = final_master,
+  strata   = "time_to_death_status_90days",
+  output   = "/Users/to909/Desktop/Tables/table1_check_0508_time_to_death_status_90days.csv"
+)
+
+
+```
+
+# table1_check_0508_HRS_criteria_3
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+create_table_one(
+  all_vars = all_vars,
+  cat_vars = categorical_vars,
+  data     = final_master,
+  strata   = "HRS_criteria_3",
+  output   = "/Users/to909/Desktop/Tables/table1_check_0508_HRS_criteria_3.csv"
+)
+
+
+```
+
+
+
+# followup HRS_reversal_new
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+followup_variables<- c(
+  "dc_aki_recurrence",
+  "dc_aki_recurrence_number",
+  "dc_aki_recurrence_date",
+  "days_to_aki_recurrence",
+  "dc_aki_recurrence_eitology",
+  # "dc_aki_recurrence_etiology_other",
+  "dc_terli_use",
+  "dc_terli_use_date",
+  "dc_days_to_terli_use",
+  "dc_hd_status",
+  "dc_death_90days",
+  "dc_lastecounter_date",
+  "dc_days_lastencounter",
+  "dc_death90_date",
+  "dc_days_to_death",
+  "dc_lost_to_followup_date",
+  "days_to_lost_to_followup",
+  "dc_lt_90days",
+  "dc_lt90_date",
+  "dc_days_lt",
+  "dc_hdstatus_lt",
+  "dc_lt_evalsafetynet",
+  "dc_lt_safetynetreason",
+  "dc_lt_safetynetreasonother",
+  "dc_lt_listedsafetynet",
+  "dc_lt_safetynetktdate",
+  "dc_lt_daystosafetynetkt",
+  "dc_90scr_notavailable_lt",
+  "dc_scr_90day_postlt_value",
+  "dc_scr_90day_postlt_date",
+  "dc_days_to_90dayscr_lt",
+  "dc_neph_followup",
+  "dc_neph_followup_date",
+  "dc_days_to_neph_followup",
+  "dc_gihep_followup",
+  "dc_gihep_followup_date",
+  "dc_days_to_gihep_followup",
+  "dc_30scr_notavailable",
+  "dc_scr30_value",
+  "dc_scr_30days_date",
+  "dc_days_scr30",
+  "dc_60scr_notavailable",
+  "dc_scr60_value",
+  "dc_scr_60days_date",
+  "dc_days_scr60",
+  "dc_90scr_notavailable",
+  "dc_scr90_value",
+  "dc_scr_90days_date",
+  "dc_days_scr91",
+  "vital_status_1yr",
+  "last_encounter_1yr",
+  "days_to_last_encounter_1yr",
+  "date_death_1yr",
+  "days_to_death_1yr",
+  "date_lastencounter_1yr",
+  "days_lastencounter_1yr",
+  "hd_status_1yr",
+  "scr_available_1yr",
+  "scr_value_1yr",
+  "scr_date_1yr",
+  "days_to_scr_1yr",
+  "lt_status_1yr",
+  "lt_type_1yr",
+  "lt_date_1yr",
+  "days_to_lt_1yr",
+  "tips_1yr",
+  "tips_1yr_indication",
+  "tips_1yr_other",
+  "tips_1yr_date"
+)
+
+# Remove variables containing the word "date"
+followup_variables <- followup_variables[!grepl("date", followup_variables, ignore.case = TRUE)]
+
+# Exclude elements from followup_variables that are in setdiff(followup_variables, all)
+followup_variables <- setdiff(followup_variables, setdiff(followup_variables, names(final_master)))
+
+
+# Identify variables in followup_variables that are completely NA in the dataframe all
+completely_na_vars <- followup_variables[sapply(all[followup_variables], function(x) all(is.na(x)))]
+
+# Exclude elements from followup_variables that are in setdiff(followup_variables, all)
+followup_variables <- setdiff(followup_variables, completely_na_vars)
+
+
+# setdiff(followup_variables,all)
+# Create a vector with the specified variable names
+cat_followup_variables <-  c(
+  "dc_aki_recurrence", 
+  # "days_to_aki_recurrence", 
+  "dc_aki_recurrence_eitology", 
+  # "dc_aki_recurrence_etiology_other", 
+  "dc_terli_use", 
+  # "dc_days_to_terli_use", 
+  "dc_hd_status", 
+  "dc_death_90days", 
+  "dc_lt_90days", 
+  "dc_lt_90days", 
+  "dc_lt_evalsafetynet", 
+  "dc_lt_safetynetreason", 
+  "dc_lt_safetynetreasonother", 
+  "dc_lt_listedsafetynet", 
+  "dc_lt_daystosafetynetkt", 
+  "dc_neph_followup", 
+  "dc_gihep_followup", 
+  "vital_status_1yr", 
+  "hd_status_1yr", 
+  "lt_status_1yr", 
+  "lt_type_1yr", 
+  "tips_1yr", 
+  "tips_1yr_indication", 
+  "tips_1yr_other", 
+  "tips_1yr_days",
+  "dc_hdstatus_lt"
+)
+
+followup_variables <- unique(followup_variables)
+cat_followup_variables <- unique(cat_followup_variables)
+num_followup_variables <- setdiff(followup_variables,cat_followup_variables)
+
+
+final_master <- final_master %>% mutate_at(cat_followup_variables,as.factor)
+
+
+```
+
+# HRS_reversal_new
+```{r,include=FALSE}
+create_table_one(
+  all_vars = followup_variables,
+  cat_vars = cat_followup_variables,
+  data     = final_master,
+  strata   = "HRS_reversal_new",
+  output   = "/Users/to909/Desktop/Tables/table_followup_0508_HRS_reversal_new.csv"
+)
+
+```
+# hrs_responders
+```{r,include=FALSE}
+create_table_one(
+  all_vars = followup_variables,
+  cat_vars = cat_followup_variables,
+  data     = final_master,
+  strata   = "hrs_responders",
+  output   = "/Users/to909/Desktop/Tables/table_followup_0508_hrs_responders.csv"
+)
+
+```
+# hrs_responders_cat_2
+```{r,include=FALSE}
+create_table_one(
+  all_vars = followup_variables,
+  cat_vars = cat_followup_variables,
+  data     = final_master,
+  strata   = "hrs_responders_cat_2",
+  output   = "/Users/to909/Desktop/Tables/table_followup_0508_hrs_responders_cat_2.csv"
+)
+
+```
+
+# HRS_criteria_3
+```{r,include=FALSE}
+create_table_one(
+  all_vars = followup_variables,
+  cat_vars = cat_followup_variables,
+  data     = final_master,
+  strata   = "HRS_criteria_3",
+  output   = "/Users/to909/Desktop/Tables/table_followup_0508_HRS_criteria_3.csv"
+)
+
+```
+
+
+# time_to_death_status_90days
+```{r,include=FALSE}
+create_table_one(
+  all_vars = followup_variables,
+  cat_vars = cat_followup_variables,
+  data     = final_master,
+  strata   = "time_to_death_status_90days",
+  output   = "/Users/to909/Desktop/Tables/table_followup_0508_hrs_time_to_death_status_90days.csv"
+)
+
+```
+# 	Hospital Course Instrument table 1 HRS_reversal_new
+```{r,include=FALSE,echo=FALSE,warning=FALSE,message=FALSE}
+hospitalization_course_variables<- c(
+  "total_albumin_post_terli",
+  "total_prbc_post_terli",
+  "gibleed_hosp",
+  "gibleed_date",
+  "days_to_gibleed",
+  "noso_infection",
+  "noso_infection_date",
+  "days_to_noso_infection",
+  "type_noso_infection",
+  "other_noso_infection",
+  "icu_admit",
+  "icu_admit_date",
+  "days_to_icu_admit",
+  "icu_dc_date",
+  "days_to_icu_dc",
+  "mv_use",
+  "mv_date",
+  "days_to_mv",
+  "mv_extubation_date",
+  "days_to_mv_extubation",
+  "norepi_post_terli",
+  "norepi_post_terli_date",
+  "days_to_norepi_post_terli",
+  "norepi_post_terli_dc_date",
+  "days_norepi_post_terli",
+  "dc_date",
+  "days_to_discharge",
+  # "dc_available_sna",
+  "dc_sna",
+  # "dc_available_scr",
+  "dc_scr",
+  # "dc_available_albumin",
+  "dc_albumin",
+  # "dc_available_tbili",
+  "dc_tbili",
+  # "dc_available_inr",
+  "dc_inr",
+  "nsbb_dc",
+  "nsbb_dc_dose",
+  "dc_diuretics",
+  "dc_k_sparing_diuretic",
+  "dc_midodrine",
+  "dc_midodrine_total",
+  "dc_octreotide",
+  "dc_octreotide_total",
+  "dc_rifaximin",
+  "dc_lactulose",
+  "dc_sbp_ppx",
+  "disposition",
+  "lt_eval",
+  "lt_eval_date",
+  "days_to_lt_eval",
+  "lteval_listingstatus",
+  "lt_listing_date",
+  "days_to_lt_listing",
+  "lt_during_hospital",
+  "slkt_during_hospital",
+  "lt_date",
+  "days_to_lt"
+)
+
+
+
+hospitalization_course_variables <- hospitalization_course_variables[!grepl("_date$", hospitalization_course_variables)]
+
+setdiff(hospitalization_course_variables,names(final_master))
+
+
+formula_hospitalization_course_variables<- as.formula(paste("~", paste(hospitalization_course_variables, collapse = " + "), "| HRS_reversal_new"))
+
+cat_hospitalization_course_variables <- c(
+  "slkt_during_hospital", "lt_during_hospital", "lteval_listingstatus", "lt_eval", 
+  "dc_sbp_ppx", "dc_lactulose", "dc_rifaximin", "dc_midodrine", 
+  "dc_k_sparing_diuretic", "dc_diuretics", "nsbb_dc", "norepi_post_terli", 
+  "mv_use", "icu_admit", "type_noso_infection", "noso_infection", 
+  "gibleed_hosp","dc_octreotide","disposition"
+)
+final_master$dc_tbili <- as.numeric(str_extract(final_master$dc_tbili, "\\d+\\.?\\d*"))
+
+cat_hospitalization_course_variables <- unique(cat_hospitalization_course_variables)
+hospitalization_course_variables <- unique(hospitalization_course_variables)
+num_hospitalization_course_variables <- setdiff(hospitalization_course_variables,cat_hospitalization_course_variables)
+
+
+final_master <- final_master %>% mutate_at(cat_hospitalization_course_variables,as.factor)
+```
+
+
+# hospitalization_course HRS_reversal_new
+```{r,include=FALSE}
+
+
+create_table_one(
+  all_vars = hospitalization_course_variables,
+  cat_vars = cat_hospitalization_course_variables,
+  data     = final_master,
+  strata   = "HRS_reversal_new",
+  output   = "/Users/to909/Desktop/Tables/table_hospitalization_0508_HRS_reversal_new.csv"
+)
+
+
+```
+
+# hospitalization_course hrs_responders
+```{r,include=FALSE}
+
+
+create_table_one(
+  all_vars = hospitalization_course_variables,
+  cat_vars = cat_hospitalization_course_variables,
+  data     = final_master,
+  strata   = "hrs_responders",
+  output   = "/Users/to909/Desktop/Tables/table_hospitalization_0508_hrs_responders.csv"
+)
+
+
+```
+
+# hospitalization_course hrs_responders_cat_2
+```{r,include=FALSE}
+
+
+create_table_one(
+  all_vars = hospitalization_course_variables,
+  cat_vars = cat_hospitalization_course_variables,
+  data     = final_master,
+  strata   = "hrs_responders_cat_2",
+  output   = "/Users/to909/Desktop/Tables/table_hospitalization_0508_hrs_responders_cat_2.csv"
+)
+
+
+```
+
+# hospitalization_course time_to_death_status_90days
+```{r,include=FALSE}
+
+
+create_table_one(
+  all_vars = hospitalization_course_variables,
+  cat_vars = cat_hospitalization_course_variables,
+  data     = final_master,
+  strata   = "time_to_death_status_90days",
+  output   = "/Users/to909/Desktop/Tables/table_hospitalization_0508_time_to_death_status_90days.csv"
+)
+
+
+```
+
+# hospitalization_course HRS_criteria_3
+```{r,include=FALSE}
+
+
+create_table_one(
+  all_vars = hospitalization_course_variables,
+  cat_vars = cat_hospitalization_course_variables,
+  data     = final_master,
+  strata   = "HRS_criteria_3",
+  output   = "/Users/to909/Desktop/Tables/table_hospitalization_0508_HRS_criteria_3.csv"
+)
+
+
+```
+
+
+
+# 	HRS Clinical  Course Instrument 
+```{r,include=FALSE,echo=FALSE,warning=FALSE,message=FALSE}
+hrs_clinical_course_variables<- c(
+  "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli", "scr_day4_post_terli",
+  "scr_day5_post_terli", "scr_day6_post_terli", "scr_day7_post_terli", "scr_day8_post_terli",
+  "scr_day9_post_terli", "scr_day10_post_terli", "scr_day11_post_terli", "scr_day12_post_terli",
+  "scr_day13_post_terli", "scr_day14_post_terli", "HRS_reversal_new", "days_to_hrsreversal",
+  "hrsrecovery", "days_to_hrsrecovery", "recurrentaki", "recurrentaki_number",
+  "days_to_recurrentaki", "recurrentaki_akietiology", "retreatment_terli", "nadirhospit_scr",
+  "days_to_nadirhospit_scr", "peakhospit_scr", "days_to_peakhospitscr", "rrt", "days_to_rrt",
+  "rrt_modality", "rrt_continuous", "days_to_rrt_continuous", "hd_discharge",
+  "rrt_indication___1",
+  "rrt_indication___2",
+  "rrt_indication___3",
+  "rrt_indication___4",
+  "rrt_indication___5",
+  "rrt_indication___6",
+  "rrt_indication___7",
+  "rrt_indication_other"
+  
+)
+
+
+# Vector of numerical variables
+num_hrs_clinical_course_variables<- c(
+  "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli", "scr_day4_post_terli",
+  "scr_day5_post_terli", "scr_day6_post_terli", "scr_day7_post_terli", "scr_day8_post_terli",
+  "scr_day9_post_terli", "scr_day10_post_terli", "scr_day11_post_terli", "scr_day12_post_terli",
+  "scr_day13_post_terli", "scr_day14_post_terli", "days_to_hrsreversal", "days_to_hrsrecovery",
+   "recurrentaki_number", "days_to_recurrentaki", "nadirhospit_scr",
+  "peakhospit_scr", "days_to_peakhospitscr", "days_to_rrt"
+)
+
+cat_hrs_clinical_course_variables <- c(
+  "HRS_reversal_new",
+  "hrsrecovery", "recurrentaki_akietiology", "retreatment_terli", "rrt",
+  "rrt_modality", "rrt_continuous", "hd_discharge","recurrentaki",
+    "rrt_indication___1",
+  "rrt_indication___2",
+  "rrt_indication___3",
+  "rrt_indication___4",
+  "rrt_indication___5",
+  "rrt_indication___6",
+  "rrt_indication___7",
+  "rrt_indication_other"
+)
+
+
+
+final_master <- final_master %>% mutate_at(num_hrs_clinical_course_variables,as.numeric)
+
+
+final_master <- final_master %>% mutate_at(cat_hrs_clinical_course_variables,as.factor)
+
+
+```
+# HRS_reversal_new
+```{r,include=FALSE}
+create_table_one(
+  all_vars = hrs_clinical_course_variables,
+  cat_vars = cat_hrs_clinical_course_variables,
+  data     = final_master,
+  strata   = "HRS_reversal_new",
+  output   = "/Users/to909/Desktop/Tables/table_hrs_clinical_0508_HRS_reversal_new.csv"
+)
+```
+
+# hrs_responders
+```{r,include=FALSE}
+create_table_one(
+  all_vars = hrs_clinical_course_variables,
+  cat_vars = cat_hrs_clinical_course_variables,
+  data     = final_master,
+  strata   = "hrs_responders",
+  output   = "/Users/to909/Desktop/Tables/table_hrs_clinical_0508_hrs_responders.csv"
+)
+```
+
+# hrs_responders_cat_2
+```{r,include=FALSE}
+create_table_one(
+  all_vars = hrs_clinical_course_variables,
+  cat_vars = cat_hrs_clinical_course_variables,
+  data     = final_master,
+  strata   = "hrs_responders_cat_2",
+  output   = "/Users/to909/Desktop/Tables/table_hrs_clinical_0508_hrs_responders_cat_2.csv"
+)
+```
+
+# HRS_criteria_3
+```{r,include=FALSE}
+create_table_one(
+  all_vars = hrs_clinical_course_variables,
+  cat_vars = cat_hrs_clinical_course_variables,
+  data     = final_master,
+  strata   = "HRS_criteria_3",
+  output   = "/Users/to909/Desktop/Tables/table_hrs_clinical_0508_HRS_criteria_3.csv"
+)
+```
+
+
+
+
+# time_to_death_status_90days
+```{r,include=FALSE}
+create_table_one(
+  all_vars = hrs_clinical_course_variables,
+  cat_vars = cat_hrs_clinical_course_variables,
+  data     = final_master,
+  strata   = "time_to_death_status_90days",
+  output   = "/Users/to909/Desktop/Tables/table_hrs_clinical_0508_time_to_death_status_90days.csv"
+)
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+# AE HRS_reversal_new
+# ae_test <- final_master%>% drop_na(Discont_Day)  %>%
+#   rowwise() %>%  # Ensure row-wise operations
+#   mutate(
+#     last_scr = get(paste0("scr_terli_day", Discont_Day)),
+# 
+#     discont_reason_terli = get(paste0("discont_reason_terli_day", Discont_Day)),
+#     terli_ae_abdpain = get(paste0("terli_ae_abdpain_day", Discont_Day)),
+#     terli_ae_nausea = get(paste0("terli_ae_nausea_day", Discont_Day)),
+#     terli_ae_diarrhea = get(paste0("terli_ae_diarrhea_day", Discont_Day)),
+#     terli_ae_volover = get(paste0("terli_ae_volover_day", Discont_Day)),
+#     terli_ae_brady = get(paste0("terli_ae_brady_day", Discont_Day)),
+#     terli_other = get(paste0("terli_other_day", Discont_Day))
+#   ) %>%
+#   ungroup() %>%  # Ungroup after row-wise operation
+#   select(
+#     subjectid,
+#     last_scr,
+#     Discont_Day,
+#     discont_reason_terli,
+#     terli_ae_abdpain,
+#     terli_ae_nausea,
+#     terli_ae_diarrhea,
+#     terli_ae_volover,
+#     terli_ae_brady,
+#     terli_other
+#   ) %>% mutate(terli_7 =if_else(discont_reason_terli==7,1,0),
+#                terli_8 =if_else(discont_reason_terli==8,1,0))
+# 
+
+# ae_test <- ae_test %>% merge(final_master %>% select(subjectid,HRS_reversal_new,hrs_responders),by="subjectid",all.x = T)
+
+# ae_test <- ae_test %>% merge(final_master %>% select(subjectid,HRS_reversal_new,hrs_responders,dosechange_days),by="subjectid",all.x = T)
+
+# table1(~as.factor(terli_ae_abdpain)+
+#     as.factor(terli_ae_nausea)+
+#     as.factor(terli_ae_diarrhea)+
+#     as.factor(terli_ae_volover)+
+#     as.factor(terli_ae_brady)+
+#     as.factor(terli_7)+
+#      as.factor(terli_8)|HRS_reversal_new,ae_test)
+
+```
+
+
+
+
+# numerical_vars HRS_reversal_new
+```{r}
+numerical_vars_formula <- as.formula(paste("~", paste(numerical_vars, collapse = "+"),"|HRS_reversal_new"))
+table1(numerical_vars_formula,data = final_master)
+```
+# num_hrs_clinical_course_variables HRS_reversal_new
+```{r}
+num_hrs_clinical_course_variables_formula <- as.formula(paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"),"|HRS_reversal_new"))
+table1(num_hrs_clinical_course_variables_formula,data = final_master)
+```
+# num_hospitalization_course_variables HRS_reversal_new
+```{r}
+num_hospitalization_course_variables_formula <- as.formula(paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"),"|HRS_reversal_new"))
+table1(num_hospitalization_course_variables_formula,data = final_master)
+```
+# num_followup_variables HRS_reversal_new
+```{r}
+num_followup_variables_formula <- as.formula(paste("~", paste(num_followup_variables, collapse = "+"),"|HRS_reversal_new"))
+table1(num_followup_variables_formula,data = final_master)
+```
+
+
+# numerical_vars hrs_responders
+```{r}
+numerical_vars_formula <- as.formula(paste("~", paste(numerical_vars, collapse = "+"),"|hrs_responders"))
+table1(numerical_vars_formula,data = final_master %>% drop_na(hrs_responders))
+```
+# num_hrs_clinical_course_variables hrs_responders
+```{r}
+num_hrs_clinical_course_variables_formula <- as.formula(paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"),"|hrs_responders"))
+table1(num_hrs_clinical_course_variables_formula,data = final_master%>% drop_na(hrs_responders))
+```
+# num_hospitalization_course_variables hrs_responders
+```{r}
+num_hospitalization_course_variables_formula <- as.formula(paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"),"|hrs_responders"))
+table1(num_hospitalization_course_variables_formula,data = final_master%>% drop_na(hrs_responders))
+```
+# num_followup_variables hrs_responders
+```{r}
+num_followup_variables_formula <- as.formula(paste("~", paste(num_followup_variables, collapse = "+"),"|hrs_responders"))
+table1(num_followup_variables_formula,data = final_master%>% drop_na(hrs_responders))
+```
+
+
+
+
+
+# HRS_reversal_new KM 
+```{r echo=FALSE, warning=FALSE, r,message=FALSE}
+
+####################### Subgroup
+final_master <- final_master %>% drop_na(HRS_reversal_new,hrs_responders)
+
+
+final_master$time_to_death_status_90days <-
+  as.integer(as.character(final_master$time_to_death_status_90days))
+
+fit_90days_death<- survfit(Surv(time_to_death_90days,time_to_death_status_90days) ~ HRS_reversal_new, data = final_master )
+
+
+result_90days_death<- ggsurvplot(
+  fit_90days_death,                     # survfit object with calculated statistics.
+  data = final_master,  # data used to fit survival curves.
+  surv.scale = "percent",
+  # legend.title = "Etiology of AKI", # legend title
+  # legend.labs = c("Prerenal","HRS-AKI","ATN"), # legend labels
+  # palette = c("#00ABFD","#7CAE00","#F8766D"),
+  pval = T,             # show p-value of log-rank test.
+  pval.coord = c(75, 1),# pvalue  position
+  pval.size = 4, # pvalue size
+  conf.int = FALSE,         # show confidence intervals for
+  xlim = c(0,90),  # present narrower X axis, but not affect survival estimates.
+  xlab = "Time (days)", # Xlabel.
+  break.time.by = 30,     # break X axis in time intervals by 500.
+  # ggtheme = theme_minimal(), # customize plot and risk table with a theme.
+  tables.theme = theme_cleantable(),
+  risk.table = TRUE,       # show risk table.
+  risk.table.y.text.col = T, # colour risk table text annotations.
+  risk.table.y.text = T, # show bars instead of names in text annotations
+  risk.table.fontsize= 4,
+  # in legend of risk table
+)
+
+result_90days_death$table <- result_90days_death$table + theme(axis.line = element_blank()) + ggtitle("Number of participants entering intervals")
+#result_90days_death$plot <- result_90days_death$plot + labs(title = "Survival Curves")
+result_90days_death
+```
+
+
+
+# hrs_responders KM
+```{r,message=FALSE,warning=FALSE,echo=FALSE}
+
+####################### Subgroup
+
+
+fit_90days_death<- survfit(Surv(time_to_death_90days,time_to_death_status_90days) ~ hrs_responders, data = final_master )
+
+
+##### Prerenal : blue
+##### HRS: green
+##### ATN: red
+
+
+result_90days_death<- ggsurvplot(
+  fit_90days_death,                     # survfit object with calculated statistics.
+  data = final_master,  # data used to fit survival curves.
+  surv.scale = "percent",
+  # legend.title = "Etiology of AKI", # legend title
+  # legend.labs = c("Prerenal","HRS-AKI","ATN"), # legend labels
+  # palette = c("#00ABFD","#7CAE00","#F8766D"),
+  pval = T,             # show p-value of log-rank test.
+  pval.coord = c(75, 1),# pvalue  position
+  pval.size = 4, # pvalue size
+  conf.int = FALSE,         # show confidence intervals for
+  xlim = c(0,90),  # present narrower X axis, but not affect survival estimates.
+  xlab = "Time (days)", # Xlabel.
+  break.time.by = 30,     # break X axis in time intervals by 500.
+  # ggtheme = theme_minimal(), # customize plot and risk table with a theme.
+  tables.theme = theme_cleantable(),
+  risk.table = TRUE,       # show risk table.
+  risk.table.y.text.col = T, # colour risk table text annotations.
+  risk.table.y.text = T, # show bars instead of names in text annotations
+  risk.table.fontsize= 4,
+  # in legend of risk table
+)
+
+result_90days_death$table <- result_90days_death$table + theme(axis.line = element_blank()) + ggtitle("Number of participants entering intervals")
+#result_90days_death$plot <- result_90days_death$plot + labs(title = "Survival Curves")
+result_90days_death
+```
+# hrs_responders_cat_2 KM
+```{r,message=FALSE,warning=FALSE,echo=FALSE}
+
+####################### Subgroup
+
+
+fit_90days_death<- survfit(Surv(time_to_death_90days,time_to_death_status_90days) ~ hrs_responders_cat_2, data = final_master )
+
+
+##### Prerenal : blue
+##### HRS: green
+##### ATN: red
+
+
+result_90days_death<- ggsurvplot(
+  fit_90days_death,                     # survfit object with calculated statistics.
+  data = final_master,  # data used to fit survival curves.
+  surv.scale = "percent",
+  # legend.title = "Etiology of AKI", # legend title
+  # legend.labs = c("Prerenal","HRS-AKI","ATN"), # legend labels
+  # palette = c("#00ABFD","#7CAE00","#F8766D"),
+  pval = T,             # show p-value of log-rank test.
+  pval.coord = c(75, 1),# pvalue  position
+  pval.size = 4, # pvalue size
+  conf.int = FALSE,         # show confidence intervals for
+  xlim = c(0,90),  # present narrower X axis, but not affect survival estimates.
+  xlab = "Time (days)", # Xlabel.
+  break.time.by = 30,     # break X axis in time intervals by 500.
+  # ggtheme = theme_minimal(), # customize plot and risk table with a theme.
+  tables.theme = theme_cleantable(),
+  risk.table = TRUE,       # show risk table.
+  risk.table.y.text.col = T, # colour risk table text annotations.
+  risk.table.y.text = T, # show bars instead of names in text annotations
+  risk.table.fontsize= 4,
+  # in legend of risk table
+)
+
+result_90days_death$table <- result_90days_death$table + theme(axis.line = element_blank()) + ggtitle("Number of participants entering intervals")
+#result_90days_death$plot <- result_90days_death$plot + labs(title = "Survival Curves")
+result_90days_death
+```
+
+
+
+# ae by HRS_Criteria 
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+
+ae_vars <- c(
+  "any_ae",
+  "terli_ae_abdpain",
+  "terli_ae_nausea",
+  "terli_ae_diarrhea",
+  "terli_ae_volover",
+  "terli_ae_brady",
+  "terli_7",
+  "terli_8",
+  "terli_ae_respfail"
+)
+
+# table1(~as.factor(terli_ae_abdpain)+
+#     as.factor(terli_ae_nausea)+
+#     as.factor(terli_ae_diarrhea)+
+#     as.factor(terli_ae_volover)+
+#     as.factor(terli_ae_brady)+
+#     as.factor(terli_7)+
+#      as.factor(terli_8)+
+#       as.factor(terli_ae_respfail)|HRS_Criteria,final_master %>% drop_na(HRS_Criteria))
+
+T1_ae <- tableone::CreateTableOne(
+    vars       = ae_vars,
+    strata     = "HRS_Criteria",        # variable to stratify by
+    data       = final_master,
+    factorVars = ae_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+       print1 <- print(
+      T1_ae,
+      showAllLevels = T,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE,
+      exact = ae_vars[!ae_vars %in% c("terli_ae_respfail","any_ae") ]
+    )
+ write.csv(print1, file = "/Users/to909/Desktop/Tables/ae by HRS_Criteria.csv")
+```
+
+# ae by HRS_Criteria 
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+
+ae_vars <- c(
+  "any_ae",
+  "terli_ae_abdpain",
+  "terli_ae_nausea",
+  "terli_ae_diarrhea",
+  "terli_ae_volover",
+  "terli_ae_brady",
+  "terli_7",
+  "terli_8",
+  "terli_ae_respfail"
+)
+
+# table1(~as.factor(terli_ae_abdpain)+
+#     as.factor(terli_ae_nausea)+
+#     as.factor(terli_ae_diarrhea)+
+#     as.factor(terli_ae_volover)+
+#     as.factor(terli_ae_brady)+
+#     as.factor(terli_7)+
+#      as.factor(terli_8)+
+#       as.factor(terli_ae_respfail)|HRS_Criteria,final_master %>% drop_na(HRS_Criteria))
+
+T1_ae <- tableone::CreateTableOne(
+    vars       = ae_vars,
+    strata     = "HRS_criteria_3",        # variable to stratify by
+    data       = final_master,
+    factorVars = ae_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+       print1 <- print(
+      T1_ae,
+      showAllLevels = T,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE,
+      exact = ae_vars[!ae_vars %in% c("terli_ae_respfail","any_ae") ]
+    )
+ write.csv(print1, file = "/Users/to909/Desktop/Tables/ae by HRS_criteria_3.csv")
+ 
+ 
+```
+
+
+# ae by terli_route_day0 missing terli_route_day0 
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+# table1(~as.factor(terli_ae_abdpain)+
+#     as.factor(terli_ae_nausea)+
+#     as.factor(terli_ae_diarrhea)+
+#     as.factor(terli_ae_volover)+
+#     as.factor(terli_ae_brady)+
+#     as.factor(terli_7)+
+#      as.factor(terli_8)+
+#       as.factor(terli_ae_respfail)|terli_route_day0 ,final_master )
+
+
+
+ T1_ae <- tableone::CreateTableOne(
+    vars       = ae_vars,
+    strata     = "terli_route_day0",        # variable to stratify by
+    data       = final_master,
+    factorVars = ae_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+    print1 <- print(
+      T1_ae,
+      showAllLevels = T,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE,
+      exact = ae_vars
+    )
+  write.csv(print1, file = "/Users/to909/Desktop/Tables/ae by terli_route_day0.csv")
+
+```
+
+
+
+# ae by  meld_35
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+final_master <- final_master %>% mutate(meld_35=if_else(admit_meld_3_raw>=35,">=35","<35"))
+
+
+ T1_ae <- tableone::CreateTableOne(
+    vars       = ae_vars,
+    strata     = "meld_35",        # variable to stratify by
+    data       = final_master,
+    factorVars = ae_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+    print1 <- print(
+      T1_ae,
+      showAllLevels = T,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE,
+      exact = ae_vars
+    )
+  write.csv(print1, file = "/Users/to909/Desktop/Tables/ae by meld_35.csv")
+
+```
+
+
+
+# ae by  criteria_2
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+final_master %>% mutate(criteria_2=if_else(admit_meld_3_raw>=35,">=35","<35"))
+
+
+ T1_ae <- tableone::CreateTableOne(
+    vars       = ae_vars,
+    strata     = "criteria_2",        # variable to stratify by
+    data       = final_master,
+    factorVars = ae_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+    print1 <- print(
+      T1_ae,
+      showAllLevels = T,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE,
+      exact = ae_vars
+    )
+  write.csv(print1, file = "/Users/to909/Desktop/Tables/ae by criteria_2.csv")
+
+```
+
+
+
+
+
+
+# scr_category by HRS_reversal_new
+```{r,include=T,echo=FALSE,message=FALSE,warning=FALSE}
+a <- final_master %>%
+  mutate(scr_category = cut(scr_terli_day0,
+                            breaks = c(-Inf, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, Inf),
+                            labels = c("<1.5", "1.5-2", "2-2.5", "2.5-3", "3-3.5",
+                                       "3.5-4", "4-4.5", "4.5-5", ">5"),
+                            right = FALSE))
+
+
+gmodels::CrossTable(a$scr_category,a$HRS_reversal_new)
+
+```
+
+
+# scr_category by hrs_responders_cat_2
+```{r,include=T,echo=FALSE,message=FALSE,warning=FALSE}
+a <- final_master %>%
+  mutate(scr_category = cut(scr_terli_day0,
+                            breaks = c(-Inf, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, Inf),
+                            labels = c("<1.5", "1.5-2", "2-2.5", "2.5-3", "3-3.5",
+                                       "3.5-4", "4-4.5", "4.5-5", ">5"),
+                            right = FALSE))
+
+
+gmodels::CrossTable(a$scr_category,a$hrs_responders_cat_2)
+
+```
+
+
+# quintiles of admit_meld_3_raw by HRS_reversal_new
+```{r,include=T,echo=FALSE,message=FALSE,warning=FALSE}
+a <- final_master %>% drop_na(admit_meld_3_raw) 
+a$admit_meld_3_raw_quintile <- cut(
+  a$admit_meld_3_raw,
+  breaks = quantile(a$admit_meld_3_raw, probs = seq(0, 1, 0.2), na.rm = TRUE),
+  include.lowest = TRUE,
+  labels = FALSE
+)
+
+gmodels::CrossTable(a$admit_meld_3_raw_quintile,a$HRS_reversal_new)
+
+```
+
+
+# quintiles of tbili_admit by HRS_reversal_new
+```{r,include=T,echo=FALSE,message=FALSE,warning=FALSE}
+
+a$tbili_admit_quintile <- cut(
+  a$tbili_admit,
+  breaks = quantile(a$tbili_admit, probs = seq(0, 1, 0.2), na.rm = TRUE),
+  include.lowest = TRUE,
+  labels = FALSE
+)
+
+gmodels::CrossTable(a$tbili_admit_quintile,a$HRS_reversal_new)
+# write.xlsx(as.data.frame(final_master),"/Users/to909/Desktop/final_master_check_0508.xlsx",showNA = F,row.names= F)
+```
+
+
+
+
+
+# 1 Unviariate Logistic regression:  time_to_death_status_90days
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+
+final_master %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,listed_transplant,time_to_death_status_90days) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = time_to_death_status_90days,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 2 Multivariate Logistic regression:time_to_death_status_90days  
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+glm( time_to_death_status_90days ~HRS_reversal_new+ age+race_2+hispanic+admit_meld_3+listed_transplant,family = binomial, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+# 3 Unviariate Logistic regression:  time_to_death_status_90days
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+
+final_master %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,listed_transplant,time_to_death_status_90days) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = time_to_death_status_90days,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 4 Multivariate Logistic regression:time_to_death_status_90days  
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+glm( time_to_death_status_90days ~hrs_responders_cat_2+ age+race_2+hispanic+admit_meld_3+listed_transplant,family = binomial, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+
+
+
+# 5 Unviariate Logistic regression:  transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+
+final_master %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,transplant_outcome) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 6 Multivariate Logistic regression:transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+glm( transplant_outcome ~HRS_reversal_new+ age+race_2+hispanic+admit_meld_3,family = binomial, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+# 7 Unviariate Logistic regression:  transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+
+final_master %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,transplant_outcome) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 8 Multivariate Logistic regression:transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F,include=FALSE}
+glm( transplant_outcome ~hrs_responders_cat_2+ age+race_2+hispanic+admit_meld_3,family = binomial, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+
+
+# 9.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+# 9.2 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+
+
+final_master %>% 
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3,
+         time_to_death_90days_cmp, time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode = 2, cencode = 0),
+    y = Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%
+  bold_labels()
+
+```
+# 10.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 10.2 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+# 11.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# 11.2 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# 12.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+# 12.2 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+
+# 13 Unviariate Logistic regression:  transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant == 1)  %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,transplant_outcome) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 14 Multivariate Logistic regression:transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+glm( transplant_outcome ~HRS_reversal_new+ age+race_2+hispanic+admit_meld_3,family = binomial, data = final_master %>% filter(listed_transplant == 1) ) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+# 15 Unviariate Logistic regression:  transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant == 1)  %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,transplant_outcome) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 16 Multivariate Logistic regression:transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+glm( transplant_outcome ~hrs_responders_cat_2+ age+race_2+hispanic+admit_meld_3,family = binomial, data = final_master %>% filter(listed_transplant == 1) ) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+# 5 Unviariate Logistic regression:  transplant_outcome listed_transplant
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant==1) %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,transplant_outcome) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 6 Multivariate Logistic regression:transplant_outcome listed_transplant
+```{r,echo=FALSE,warning=FALSE,message=F}
+glm( transplant_outcome ~HRS_reversal_new+ age+race_2+hispanic+admit_meld_3,family = binomial, data = final_master %>% filter(listed_transplant==1)  ) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+# 7 Unviariate Logistic regression:  transplant_outcome listed_transplant
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant==1) %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,transplant_outcome) %>%
+  tbl_uvregression(
+    method = glm,
+    method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 8 Multivariate Logistic regression:transplant_outcome listed_transplant
+```{r,echo=FALSE,warning=FALSE,message=F}
+glm( transplant_outcome ~hrs_responders_cat_2+ age+race_2+hispanic+admit_meld_3,family = binomial, data = final_master %>% filter(listed_transplant==1) ) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+
+# 9.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1 listed_transplant==1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+
+final_master_listed <- final_master %>% filter(listed_transplant==1)
+
+
+final_master_listed %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+# 9.2 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master_listed %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+# 10.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master_listed) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 10.2 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master_listed) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+# 11.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master_listed %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# 11.2 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master_listed %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# 12.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master_listed) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+# 12.2 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2 final_master_listed=1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master_listed) %>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+# 16 Unviariate coxph regression: time_to_death_90days
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,listed_transplant,time_to_death_90days,time_to_death_status_90days) %>%
+  tbl_uvregression(
+    method = coxph,
+    y = Surv(time_to_death_90days,time_to_death_status_90days),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+
+final_master %>% filter(time_to_death_90days>=0) %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,listed_transplant,time_to_death_90days,time_to_death_status_90days) %>%
+  tbl_uvregression(
+    method = coxph,
+    y = Surv(time_to_death_90days,time_to_death_status_90days),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 17 Multivariate coxph regression: time_to_death_90days
+```{r,echo=FALSE,warning=FALSE,message=F}
+coxph(Surv(time_to_death_90days, time_to_death_status_90days) ~ 
+        HRS_reversal_new + age + race_2 + hispanic + admit_meld_3 + listed_transplant,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>%
+  add_n() %>%
+  bold_p(0.05) %>%
+  bold_labels()
+
+```
+
+
+
+
+# 18 Unviariate coxph regression: 
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,listed_transplant,time_to_death_90days,time_to_death_status_90days) %>%
+  tbl_uvregression(
+    method = coxph,
+   
+    y = Surv(time_to_death_90days,time_to_death_status_90days),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 19 Multivariate coxph regression:
+```{r,echo=FALSE,warning=FALSE,message=F}
+coxph(Surv(time_to_death_90days, time_to_death_status_90days) ~ 
+        hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3 + listed_transplant,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>%
+  add_n() %>%
+  bold_p(0.05) %>%
+  bold_labels()
+
+```
+
+
+
+
+
+
+
+# 20 Unviariate coxph regression:  transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+final_master <- final_master %>% mutate(time_to_transplant_status_90days_1=ifelse(time_to_transplant_status_90days==2,1,0))
+final_master %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_transplant_90days,time_to_transplant_status_90days_1) %>%
+  tbl_uvregression(
+    method = coxph,
+   
+    y = Surv(time_to_transplant_90days,time_to_transplant_status_90days_1),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# 21 Multivariate coxph regression:transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+
+coxph(Surv(time_to_transplant_90days,time_to_transplant_status_90days_1) ~ 
+        HRS_reversal_new+ age+race_2+hispanic+admit_meld_3,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>%
+  add_n() %>%
+  bold_p(0.05) %>%
+  bold_labels()
+```
+
+
+
+
+# 22 Unviariate coxph regression:  transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+final_master %>% 
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3, 
+         time_to_transplant_90days, time_to_transplant_status_90days_1) %>%
+  tbl_uvregression(
+    method = coxph,
+    y = Surv(time_to_transplant_90days, time_to_transplant_status_90days_1),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  ) %>%
+  bold_p(0.05) %>%
+  bold_labels()
+```
+
+
+# 23 Multivariate coxph regression:transplant_outcome
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+
+coxph(Surv(time_to_transplant_90days,time_to_transplant_status_90days_1) ~ 
+       hrs_responders_cat_2+ age+race_2+hispanic+admit_meld_3,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>%
+  add_n() %>%
+  bold_p(0.05) %>%
+  bold_labels()
+
+```
+
+# Map 
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+# create scr_day
+map_days <- grep("^map_terli_day", str_sort(names(final_master)), value = TRUE)
+
+
+df_long_map <- final_master %>% filter(!is.na(hrs_responders_cat_2)) %>% 
+  pivot_longer(
+    cols = starts_with("map_terli_day"), 
+    names_to = c("temp", "day", "time"),    # we will capture these parts
+    names_pattern = "^(map_terli)_day(\\d+)_time(\\d+)$", # regex to split
+    values_to = "map"
+  ) %>%
+  # 2) Convert day/time to numeric so we can sort properly
+  mutate(
+    day = as.numeric(day),
+    time = as.numeric(time)
+  ) %>%
+  select(-temp)  # 'temp' is just the literal "map_terli", can drop if not needed
+
+
+df_summary_map <- df_long_map %>%
+  group_by(subjectid, day) %>% select(subjectid,hrs_responders_cat_2, day,map)%>%
+  filter(day<=3) %>% summarise(map=mean(map,na.rm=T))
+
+
+df_summary_map <-df_summary_map %>% merge(final_master %>% select(subjectid,hrs_responders_cat_2),all.x = T,by="subjectid")
+
+df_summary_map_wide <- df_summary_map %>%
+  pivot_wider(
+    id_cols = subjectid,
+    names_from = day,
+    values_from = map,
+    names_prefix = "map_day_"
+  )
+
+
+ 
+
+df_summary_map_wide  <-df_summary_map_wide  %>% merge(final_master %>% select(subjectid,hrs_responders_cat_2),all.x = T,by="subjectid")
+df_summary_map_wide  <-df_summary_map_wide %>% mutate(map_diff_day3_0=map_day_3-map_day_0,map_diff_day2_0=map_day_2-map_day_0)
+
+
+###################### 
+T1_map<- CreateTableOne(vars = c("map_day_0","map_day_2","map_day_3","map_diff_day3_0","map_diff_day2_0"),strata = "hrs_responders_cat_2",includeNA = F,addOverall = TRUE,data = df_summary_map_wide)
+#print table one 
+T1_map_csv <- print(T1_map, nonnormal=c("map_day_0","map_day_2","map_day_3","map_diff_day3_0","map_diff_day2_0"),showAllLevels = F ,missing = T,quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+#save 
+write.csv(T1_map_csv, file = "/Users/to909/Desktop/Tables/Table_T1_map_diff.csv")
+
+
+```
+
+
+
+# added 1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1  
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1 
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+# added 2 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1 HRS_criteria_3 == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(HRS_criteria_3 == 1) %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 2 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1  HRS_criteria_3 == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master %>% filter(HRS_criteria_3 == 1) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+# added 3 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1 HRS_criteria_3 == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(HRS_criteria_3 == 0) %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic, admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 3 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1  HRS_criteria_3 == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master %>% filter(HRS_criteria_3 == 0) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+# added 4 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2 listed_transplant == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant == 1) %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 4 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2  listed_transplant == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master %>% filter(listed_transplant == 1) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# added 5 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2 listed_transplant == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant == 0) %>% 
+  select(hrs_responders_cat_2,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 5 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2  listed_transplant == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~hrs_responders_cat_2+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master %>% filter(listed_transplant == 0) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+
+
+# added 1.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1 
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+# added 2.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1 HRS_criteria_3 == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(HRS_criteria_3 == 1) %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 2.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1  HRS_criteria_3 == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master %>% filter(HRS_criteria_3 == 1) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+# added 3.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=1 HRS_criteria_3 == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(HRS_criteria_3 == 0) %>% 
+  select(HRS_reversal_new,age,race_2,hispanic, admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=1,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 3.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=1  HRS_criteria_3 == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=1,cencode=0, data = final_master %>% filter(HRS_criteria_3 == 0) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+# added 4.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2 listed_transplant == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant == 1) %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 4.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2  listed_transplant == 1
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master %>% filter(listed_transplant == 1) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+# added 5.1 Unviariate cmp:  time_to_death_status_90days_cmp failcode=2 listed_transplant == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+
+final_master %>% filter(listed_transplant == 0) %>% 
+  select(HRS_reversal_new,age,race_2,hispanic,admit_meld_3,time_to_death_90days_cmp,time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(
+    method = tidycmprsk::crr,
+    method.args = list(failcode=2,cencode=0),
+    y = Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3),
+    exponentiate = TRUE
+  )
+
+```
+
+# added 5.1 Multiviariate cmp:  time_to_death_status_90days_cmp failcode=2  listed_transplant == 0
+```{r,echo=FALSE,warning=FALSE,message=F}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp,time_to_death_status_90days_cmp) ~HRS_reversal_new+age+race_2+hispanic+admit_meld_3,failcode=2,cencode=0, data = final_master %>% filter(listed_transplant == 0) )%>% tbl_regression(exp = TRUE) %>% add_n()%>%
+  bold_p(0.05) %>%        # bold p-values under a given threshold (default 0.05)
+  bold_labels() 
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+# AE Discont_Day
+```{r}
+ae_vars <- c(
+  "any_ae",
+  "terli_ae_abdpain",
+  "terli_ae_nausea",
+  "terli_ae_diarrhea",
+  "terli_ae_volover",
+  "terli_ae_brady",
+  "terli_7",
+  "terli_8",
+  "terli_ae_respfail"
+)
+
+# Function to summarize median and IQR for each AE variable
+summarize_ae <- function(var) {
+  final_master %>% 
+    group_by(.data[[var]]) %>%
+    summarise(
+      AE_Var = var,
+      Group = as.character(.data[[var]][1]),
+      Q1 = quantile(Discont_Day, probs = 0.25, na.rm = TRUE),
+      Median = quantile(Discont_Day, probs = 0.5, na.rm = TRUE),
+      Q3 = quantile(Discont_Day, probs = 0.75, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+# Apply to each variable and combine results
+ae_summary <- map_dfr(ae_vars, summarize_ae) %>% select(AE_Var,Group,Q1,Median,Q3) %>% filter(Group==1)
+ae_summary
+```
+
+
+# table1_check
+```{r,include=FALSE,message=FALSE,echo=FALSE}
+
+create_table_one(
+  all_vars = all_vars,
+  cat_vars = categorical_vars,
+  data     = final_master,
+  strata   = "HRS_criteria_meld",
+  output   = "/Users/to909/Desktop/Tables/table1_check_0128_HRS_criteria_meld.csv"
+)
+
+
+```
+
+
+# table_hospitalization 2026
+```{r,include=FALSE}
+
+
+create_table_one(
+  all_vars = hospitalization_course_variables,
+  cat_vars = cat_hospitalization_course_variables,
+  data     = final_master,
+  strata   = "HRS_criteria_meld",
+  output   = "/Users/to909/Desktop/Tables/table_hospitalization_0128_HRS_criteria_meld.csv"
+)
+
+
+```
+
+# table_followup 2026
+```{r,include=FALSE}
+create_table_one(
+  all_vars = followup_variables,
+  cat_vars = cat_followup_variables,
+  data     = final_master,
+  strata   = "HRS_criteria_meld",
+  output   = "/Users/to909/Desktop/Tables/table_followup_0128_HRS_criteria_meld.csv"
+)
+
+```
+
+
+# table_hrs_clinical 2026
+```{r,include=FALSE}
+create_table_one(
+  all_vars = hrs_clinical_course_variables,
+  cat_vars = cat_hrs_clinical_course_variables,
+  data     = final_master,
+  strata   = "HRS_criteria_meld",
+  output   = "/Users/to909/Desktop/Tables/table_hrs_clinical_0128_HRS_criteria_meld.csv"
+)
+```
+
+
+# ae by HRS_Criteria 
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+
+ae_vars <- c(
+  "any_ae",
+  "terli_ae_abdpain",
+  "terli_ae_nausea",
+  "terli_ae_diarrhea",
+  "terli_ae_volover",
+  "terli_ae_brady",
+  "terli_7",
+  "terli_8",
+  "terli_ae_respfail"
+)
+
+T1_ae <- tableone::CreateTableOne(
+    vars       = ae_vars,
+    strata     = "HRS_criteria_meld",        # variable to stratify by
+    data       = final_master,
+    factorVars = ae_vars,      # specify which variables are factors
+    addOverall = TRUE,
+    includeNA  = FALSE
+  )
+
+  # 2) Print TableOne object and convert to data frame
+       print1 <- print(
+      T1_ae,
+      showAllLevels = T,
+      missing       = TRUE,
+      quote         = FALSE,
+      noSpaces      = TRUE,
+      printToggle   = FALSE,
+      exact = ae_vars[!ae_vars %in% c("terli_ae_respfail","any_ae") ]
+    )
+ write.csv(print1, file = "/Users/to909/Desktop/Tables/ae by HRS_criteria_meld 2026.csv")
+```
+
