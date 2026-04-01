@@ -42,7 +42,7 @@ flowchart TD
     H --> I[final_master dataset]
     I --> J[Table 1 / Stratified tables]
     I --> K[Survival & competing risk models]
-    I --> L[Multiple imputation<br/>new_request_0311.Rmd]
+    I --> L[Multiple imputation<br/>revision 0311.Rmd]
 ```
 
 ## Repository Structure
@@ -50,8 +50,7 @@ flowchart TD
 | File | Description |
 |:-----|:-----------|
 | `code/Tables.Rmd` | Main analysis (~1600 lines): data ingestion, QC, derived variables, Table 1, survival analysis |
-| `code/revision 0311.Rmd` | Revision: replicates pipeline, adds center grouping, dose-change categories, additional predictors |
-| `code/new_reqeust_0311.Rmd` | Multiple imputation (MICE m=20), logistic regression, Fine-Gray competing risk models |
+| `code/revision 0311.Rmd` | Revision analysis: replicates pipeline, adds center grouping, dose-change categories, multiple imputation (MICE m=10), Fine-Gray models with Rubin's rules pooling |
 | `data/final_master_01282026.xlsx` | Cleaned final dataset |
 | `Terlipressin Database _ REDCap Code Book.pdf` | REDCap data dictionary (132 pages, 1500+ fields) |
 

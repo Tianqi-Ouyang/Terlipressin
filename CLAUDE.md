@@ -11,9 +11,7 @@ Multi-center retrospective registry study (HARMONY) of terlipressin use for hepa
 ## Repository Structure
 
 - `code/Tables.Rmd` — Main analysis: data ingestion from 15 CSVs, QC checks, derived variable creation, Table 1 generation, survival analysis, competing risk models. This is the primary code file (~1600 lines).
-- `code/revision 0311.Rmd` — Revision analysis: replicates data pipeline from Tables.Rmd, adds center grouping, dose-change categorization, and additional predictor variables (WBC, albumin_admit).
-- `code/new_reqeust_0311.Rmd` — Multiple imputation (MICE, m=20) with logistic regression for HRS reversal and Fine-Gray competing risk models for 90-day mortality. Reads from `final_master_0508.xlsx`.
-- `code/variable_dictionary.qmd` — Comprehensive variable dictionary (Quarto). Render with `quarto render code/variable_dictionary.qmd`.
+- `code/revision 0311.Rmd` — Revision analysis: replicates data pipeline from Tables.Rmd, adds center grouping, dose-change categorization, multiple imputation (MICE m=10, PMM), Fine-Gray competing risk models with proper Rubin's rules pooling via `run_pooled_fg()`.
 - `data/final_master_01282026.xlsx` — Cleaned final dataset.
 - `Terlipressin Database _ REDCap Code Book.pdf` — REDCap data dictionary (132 pages, 1500+ fields across 18 instruments).
 

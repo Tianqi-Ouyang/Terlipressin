@@ -381,7 +381,7 @@ selected_variables <- tolower(c( "dc_available_albumin___999",
   scr_vars <- c(
     "scr_admit", "baseline_scr", "baseline_scr_120to365_value", "scr_aki",
     "scr_terli_day0", "scr_terli_day1", "scr_terli_day2", "scr_terli_day3", 
-    "scr_terli_day4", "scr_terli_day5", "scr_terli_day6", "scr_terli_day8", 
+    "scr_terli_day4", "scr_terli_day5", "scr_terli_day6", "scr_terli_day7", "scr_terli_day8",
     "scr_terli_day9", "scr_terli_day10", "scr_terli_day11", "scr_terli_day12", 
     "scr_terli_day13", "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli", 
     "peakhospit_scr", "nadirhospit_scr", 
@@ -1320,7 +1320,7 @@ numerical_vars <- c(
   "time_to_death_status",
   "time_to_death_90days",
   "cystatinc_admit","cystatinc_aki","cystatinc_terli_day0",
-  "urine_pc","fena","fena_hrs","time_to_death_90days","total_albumin","mido_maxdose_before_terli "
+  "urine_pc","fena","fena_hrs","time_to_death_90days","total_albumin","mido_maxdose_before_terli"
 )
 
 
@@ -1987,7 +1987,7 @@ table1(num_hrs_clinical_course_variables_formula,data = final_master)
 ```
 # num_hospitalization_course_variables HRS_reversal_new
 ```{r}
-num_hospitalization_course_variables_formula <- as.formula(paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"),"|HRS_reversal_new"))
+num_hospitalization_course_variables_formula <- as.formula(paste("~", paste(num_hospitalization_course_variables, collapse = "+"),"|HRS_reversal_new"))
 table1(num_hospitalization_course_variables_formula,data = final_master)
 ```
 # num_followup_variables HRS_reversal_new
@@ -2009,7 +2009,7 @@ table1(num_hrs_clinical_course_variables_formula,data = final_master%>% drop_na(
 ```
 # num_hospitalization_course_variables hrs_responders
 ```{r}
-num_hospitalization_course_variables_formula <- as.formula(paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"),"|hrs_responders"))
+num_hospitalization_course_variables_formula <- as.formula(paste("~", paste(num_hospitalization_course_variables, collapse = "+"),"|hrs_responders"))
 table1(num_hospitalization_course_variables_formula,data = final_master%>% drop_na(hrs_responders))
 ```
 # num_followup_variables hrs_responders

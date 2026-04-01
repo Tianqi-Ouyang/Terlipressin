@@ -1,138 +1,112 @@
 ---
-title: "Code Audit"
+title: "Code Check"
 author: "Tianqi Ouyang"
 date: last-modified
 ---
 
-Systematic review of `Tables.Rmd`, `revision 0311.Rmd`, and `new_reqeust_0311.Rmd` for bugs, logic errors, and inconsistencies.
-
-## Critical Bugs {.unnumbered}
+Systematic review of `Tables.Rmd` and `revision 0311.Rmd` for bugs, logic errors, and inconsistencies.
 
 ::: {.callout-tip}
-## Bugs 1, 3, and 9 have been FIXED (2026-04-01).
+## Bugs 1, 2, 3, 9, 11, 12 have been FIXED (2026-04-01).
 :::
 
 ::: {.callout-important}
-## Remaining issues 14, 17, and 18 affect survival analysis and Fine-Gray models.
+## Remaining high-severity issues: 20, 21, 23 (MELD 3.0 and CLIF-SOFA definition errors).
 :::
+
+---
+
+# Code Check (Fixed)
 
 ## 1. INU patients assigned MCM ID prefix {#bug-1}
 
-**Severity:** Critical -- data corruption
+**Severity:** Critical
 **File:** `Tables.Rmd` line 63, `revision 0311.Rmd` line 63
 
 ```r
-# Current (WRONG):
-inu <- read_csv('...INU/...') %>% ... %>% mutate(id = paste0("mcm_", row_number()))
-
-# Should be:
-inu <- read_csv('...INU/...') %>% ... %>% mutate(id = paste0("inu_", row_number()))
+# Was (WRONG):
+inu <- ... %>% mutate(id = paste0("mcm_", row_number()))
+# Fixed:
+inu <- ... %>% mutate(id = paste0("inu_", row_number()))
 ```
 
-The INU dataset is assigned IDs with prefix `"mcm_"` instead of `"inu_"`. MCM (line 61) also uses `"mcm_"`, so INU and MCM patients share `id` values. Any downstream operation relying on `id` as a unique identifier will have collisions.
+INU and MCM patients shared `id` values. **FIXED** in both files.
 
 ## 2. `scr_terli_day7` missing from `scr_vars` list {#bug-2}
 
 **Severity:** Moderate
-**File:** `Tables.Rmd` line 381--389, `revision 0311.Rmd` same lines
+**File:** `Tables.Rmd` line 384, `revision 0311.Rmd` line 384
 
 ```r
-scr_vars <- c(
-  ..., "scr_terli_day6", "scr_terli_day8", ...
-  # scr_terli_day7 is skipped
-)
+# Was (WRONG):
+"scr_terli_day6", "scr_terli_day8",  # day7 skipped
+# Fixed:
+"scr_terli_day6", "scr_terli_day7", "scr_terli_day8",
 ```
 
-Day 7 creatinine is omitted from the `scr_vars` vector. If this list is used for selection or iteration, day 7 data is silently excluded.
+All other lab variable lists (bili, INR, albumin, sodium) correctly include day 7. **FIXED** in both files.
 
 ## 3. Child-Pugh score uses telemetry instead of bilirubin {#bug-3}
 
-**Severity:** Critical -- wrong clinical score for all patients
+**Severity:** Critical
 **File:** `Tables.Rmd` line 881, `revision 0311.Rmd` line 1040
 
 ```r
-# Current (WRONG):
+# Was (WRONG):
 child_pugh_score = mapply(child_pugh_score,
-  tele_terli_day0,     # <-- This is telemetry (yesno), NOT bilirubin!
+  tele_terli_day0,     # telemetry (0/1), NOT bilirubin
   alb_terli_day0, inr_terli_day0, ascites_aki, he_terli_day0)
-
-# Should be:
+# Fixed:
 child_pugh_score = mapply(child_pugh_score,
   bili_terli_day0,     # Total bilirubin
   alb_terli_day0, inr_terli_day0, ascites_aki, he_terli_day0)
 ```
 
-The `child_pugh_score()` function's first argument is `tbili` (total bilirubin), but it receives `tele_terli_day0` (continuous telemetry, a binary 0/1 variable). Every patient's Child-Pugh score is computed with a bilirubin value of 0 or 1, giving a bilirubin sub-score of 1 for all patients.
-
-## 4. `estimate_creatinine` not vectorized {#bug-4}
-
-**Severity:** Low (latent)
-**File:** `Tables.Rmd` lines 183--207
-
-The function uses scalar `if/else` and `optimize()`. It works only on one patient at a time. Currently called via `mapply()` which is correct, but the function silently uses only the first element of `sex` if a vector is ever passed directly.
-
-## 5. CLIF-C score: NA components scored as 0 {#bug-5}
-
-**Severity:** Moderate -- biases scores downward for missing data
-**File:** `Tables.Rmd` lines 211--275
-
-```r
-clif_score <- clif_score + case_when(
-  is.na(tb_admit) ~ 0,   # Missing bilirubin = score 0 (should be NA)
-  tb_admit < 6 ~ 1,
-  ...
-)
-```
-
-When a lab value is NA, the sub-score is 0 instead of propagating NA. Patients with missing data get artificially lower (better) CLIF-C scores. A patient missing all labs would have an organ score of 0, which is clinically meaningless.
-
-## 6. CLIF-C respiratory score inconsistently handles NA {#bug-6}
-
-**Severity:** Low
-**File:** `Tables.Rmd` lines 261--272
-
-When `fio2_admission` is NA, the respiratory sub-score is simply not added (stays 0), while other NA components explicitly get 0 via `case_when`. The final formula `10 * (0.33*score + 0.04*age + 0.63*log(wbc) - 2)` will produce NA if `age` or `wbc` is NA, creating inconsistent missing behavior.
-
-## 7. `HRS_criteria_meld` bare variable comparison {#bug-7}
-
-**Severity:** Low
-**File:** `Tables.Rmd` line 977
-
-```r
-# Current:
-HRS_criteria_meld = if_else((criteria_2==1 | criteria_3==1 | criteria_4==1 | criteria_5), 1, 0)
-
-# Should be:
-HRS_criteria_meld = if_else((criteria_2==1 | criteria_3==1 | criteria_4==1 | criteria_5==1), 1, 0)
-```
-
-`criteria_5` is used as a bare value (not `== 1`). Works by coercion when 0/1, but produces NA if `criteria_5` is NA.
-
-## 8. `last_scr_2` errors when `Discont_Day == 0` {#bug-8}
-
-**Severity:** Moderate
-**File:** `Tables.Rmd` line 815, `revision 0311.Rmd` line 900
-
-```r
-last_scr_2 = get(paste0("scr_terli_day", Discont_Day - 1))
-# When Discont_Day = 0, this tries to get "scr_terli_day-1" → ERROR
-```
-
-Patients discontinued on day 0 will cause `get("scr_terli_day-1")` which does not exist. Add an `ifelse(Discont_Day > 0, ..., NA)` guard.
+**FIXED** in both files.
 
 ## 9. `subgroup_master` is always empty {#bug-9}
 
-**Severity:** Critical -- subgroup analysis produces empty dataset
+**Severity:** Critical
 **File:** `Tables.Rmd` line 703--704, `revision 0311.Rmd` same
 
 ```r
-final_master <- final_master %>%
-  filter(!subjectid %in% removed_id, !subjectid %in% subgroup_id)  # removes subgroup
-subgroup_master <- final_master %>%
-  filter(subjectid %in% subgroup_id)  # tries to find them → 0 rows
+# Was (WRONG):
+final_master <- final_master %>% filter(!subjectid %in% subgroup_id)
+subgroup_master <- final_master %>% filter(subjectid %in% subgroup_id)  # always 0 rows
+# Fixed: create subgroup_master BEFORE filtering
+subgroup_master <- final_master %>% filter(subjectid %in% subgroup_id)
+final_master <- final_master %>% filter(!subjectid %in% subgroup_id)
 ```
 
-`subgroup_id` subjects were already removed from `final_master`. The second filter always returns zero rows. Fix: create `subgroup_master` **before** filtering `final_master`.
+**FIXED** in both files.
+
+## 11. Trailing space in variable name {#bug-11}
+
+**Severity:** Low
+**File:** `Tables.Rmd` line 1323
+
+```r
+# Was: "mido_maxdose_before_terli "  (trailing space)
+# Fixed: "mido_maxdose_before_terli"
+```
+
+**FIXED.**
+
+## 12. Wrong variable list in hospitalization course table {#bug-12}
+
+**Severity:** Moderate
+**File:** `Tables.Rmd` lines 1990, 2012
+
+```r
+# Was (WRONG): paste(num_hrs_clinical_course_variables, ...)
+# Fixed: paste(num_hospitalization_course_variables, ...)
+```
+
+Copy-paste error: hospitalization course table used HRS clinical course variable list. **FIXED** in both occurrences.
+
+---
+
+# Code Check (Open)
 
 ## 10. `mean()` inside `rowwise()` computes single-row mean {#bug-10}
 
@@ -144,129 +118,18 @@ subgroup_master <- final_master %>%
 bili_cal = coalesce(bili_terli_day0, tbili_admit, mean(bili_terli_day0, na.rm = T))
 ```
 
-In `rowwise()` mode, `mean(bili_terli_day0)` operates on a single value (the current row's value, which is already NA if we reached this fallback). `mean(NA, na.rm=T)` returns `NaN`, not the intended column mean. Compute the column mean before the `rowwise()` pipe.
+In `rowwise()` mode, `mean(bili_terli_day0)` operates on a single value. If `bili_terli_day0` is NA, `mean(NA, na.rm=T)` returns `NaN`, not the intended column mean. Compute the column mean before the `rowwise()` pipe.
 
-## 11. Trailing space in variable name {#bug-11}
+## 4. `estimate_creatinine` not vectorized {#bug-4}
 
-**Severity:** Low
-**File:** `Tables.Rmd` line 1323
+**Severity:** Low (latent)
+**File:** `Tables.Rmd` lines 183--207
 
-```r
-"mido_maxdose_before_terli "  # trailing space
-```
-
-Will not match column name `mido_maxdose_before_terli`. Will cause `CreateTableOne` to silently drop this variable or error.
-
-## 12. Wrong variable list in hospitalization course table {#bug-12}
-
-**Severity:** Moderate
-**File:** `Tables.Rmd` line ~1990
-
-```r
-# Copy-paste error: uses HRS clinical course variables instead of hospitalization course
-num_hospitalization_course_variables_formula <- as.formula(
-  paste("~", paste(num_hrs_clinical_course_variables, collapse = "+"), "|HRS_reversal_new")
-)
-```
-
-The table for hospitalization course shows HRS clinical course variables instead.
-
-## 13. CLIF-C HE grade 0 scores as 0 instead of 1 {#bug-13}
-
-**Severity:** Moderate
-**File:** `Tables.Rmd` lines 234--240
-
-```r
-he_grade_admission == 1 ~ 1,
-he_grade_admission %in% c(2, 3) ~ 2,
-he_grade_admission %in% c(4, 5) ~ 3,
-TRUE ~ 0    # HE grade 0 (no encephalopathy) falls here → score 0
-```
-
-Per CLIF-SOFA, HE grade 0 (no encephalopathy) should score 1, not 0. All patients without HE get an artificially lower brain sub-score.
-
-## 14. `dc_days_to_death` overwritten for survivors {#bug-14}
-
-**Severity:** High
-**File:** `Tables.Rmd` line 790, `revision 0311.Rmd` line 790
-
-```r
-dc_days_to_death = if_else(dc_death_90days == 2 | dc_death_90days == 0, 90, dc_days_to_death)
-```
-
-For alive patients (`dc_death_90days == 0`), `dc_days_to_death` is set to 90. Then `time_to_death` for non-lost-to-followup survivors becomes `days_to_discharge + 90` regardless of actual last encounter time. Should use `dc_days_lastencounter` for survivors.
-
-## new_reqeust_0311.Rmd Issues
-
-## 15. Outcome variables imputed alongside predictors {#bug-15}
-
-**Severity:** Methodological concern
-**File:** `new_reqeust_0311.Rmd` lines 93--123
-
-`mi_data` includes `HRS_reversal_new`, `hrs_responders_cat_2`, `time_to_death_90days_cmp`, and `time_to_death_status_90days_cmp` in the imputation model with `method = "pmm"` applied to all. Imputing outcome values via PMM can bias effect estimates. Standard practice: include outcomes as predictors in the imputation model but do not impute their missing values.
-
-## 16. `discont_before_day3` does not handle NA {#bug-16}
-
-**Severity:** Low
-**File:** `new_reqeust_0311.Rmd` line 39
-
-```r
-discont_before_day3 = ifelse(Discont_Day < 3, 1, 0)
-# NA Discont_Day → NA (unlike pc_change_before_day3 which gets NA→0 fix)
-```
-
-## 17. Fine-Gray pooling lacks Rubin's rules {#bug-17}
-
-**Severity:** Moderate
-**File:** `new_reqeust_0311.Rmd` lines 200--204
-
-```r
-coef_mat <- do.call(rbind, lapply(fit_crr_list, function(f) f$coef))
-coef_mean <- colMeans(coef_mat)
-hr_est <- exp(coef_mean)  # No SE, CI, or p-values
-```
-
-Simple coefficient averaging without variance pooling. The point estimates may be reasonable but no standard errors, confidence intervals, or p-values are produced.
-
-Note: `revision 0311.Rmd` has a proper `run_pooled_fg()` function that **does** implement Rubin's rules correctly (within-imputation variance + between-imputation variance pooling). The issue is only in `new_reqeust_0311.Rmd`.
-
-## 18. Fine-Gray competing risk: `time_to_death_status_90days_cmp` encoding depends on bug #14 {#bug-18}
-
-**Severity:** High -- affects all Fine-Gray models
-**File:** All files using `Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp)`
-
-The competing risk status variable `time_to_death_status_90days_cmp` is derived from:
-
-```r
-time_to_death_status_90days_cmp = case_when(
-  time_to_death_90days <= time_to_transplant_90days ~ time_to_death_status_90days,
-  time_to_death_90days >  time_to_transplant_90days ~ time_to_transplant_status_90days)
-```
-
-This has **two related issues**:
-
-1. **Depends on bug #14 (survivor time = 90):** Since survivors have `dc_days_to_death` set to 90 (line 790), their `time_to_death_90days` may equal `time_to_transplant_90days` = 90 (both capped). When times are tied, the `<=` in the first `case_when` branch assigns the death status, but these patients did NOT die -- they just have artificial time = 90. This means some alive non-transplanted patients are handled via the death-status branch (which correctly gives 0 = censored in this case, so the **status** is okay, but the **time** is inflated).
-
-2. **Tie-breaking direction when death time = transplant time:** When `time_to_death_90days == time_to_transplant_90days`, the current code assigns death status over transplant status. If a patient died AND was transplanted at the same time point (e.g., both capped at 90), death takes precedence. This is a modeling choice, not necessarily a bug, but should be documented.
-
-**The real issue** is that `time_to_death_90days` for survivors is wrong (bug #14), which inflates censoring times for alive patients, potentially biasing cumulative incidence estimates downward.
-
-## 19. `time_to_death_status_90days_cmp` converted to factor inconsistently {#bug-19}
-
-**Severity:** Low
-**File:** `new_reqeust_0311.Rmd` line 177
-
-```r
-dat$time_to_death_status_90days_cmp <- as.factor(dat$time_to_death_status_90days_cmp)
-```
-
-`tidycmprsk::crr()` requires the status variable to be a factor for competing risk specification. This conversion is done **inside** the `lapply()` loop, which is correct. However, the factor levels depend on which values are present in each imputed dataset. If one imputation has no transplant events (status=2), the factor will have only levels 0 and 1, changing the interpretation. This is unlikely but possible in small subgroup analyses.
-
-**Recommendation:** Explicitly set factor levels: `factor(dat$status, levels = c(0, 1, 2))`.
+The function uses scalar `if/else` and `optimize()`. Currently called via `mapply()` which is correct, but the function silently uses only the first element of `sex` if a vector is ever passed directly.
 
 ---
 
-# Clinical Definition Audit
+# Variable Definition Check
 
 ## 20. MELD 3.0: sodium not capped at 125--137 {#bug-20}
 
@@ -321,7 +184,7 @@ kidney_f = ifelse(!is.na(scr_terli_day0) & scr_terli_day0 >= 1.5, 1, 0)
 kidney_f = ifelse(!is.na(scr_terli_day0) & scr_terli_day0 >= 2.0, 1, 0)
 ```
 
-Using &ge; 1.5 overcounts kidney failure, inflating ACLF grades. Directly affects `criteria_2` (ACLF &ge; 3) and all futility criteria analyses. Note: since all patients have HRS-AKI, most will have SCr &ge; 2.0 anyway, but the threshold matters for borderline cases.
+Using &ge; 1.5 overcounts kidney failure, inflating ACLF grades. Directly affects `criteria_2` (ACLF &ge; 3) and all futility criteria analyses.
 
 ## 24. CLIF-SOFA circulatory failure: ignores vasopressor requirement {#bug-24}
 
@@ -355,51 +218,31 @@ akin = case_when(
 
 AKIN/KDIGO Stage 1 = increase &ge; 0.3 mg/dL. The initial staging uses `>` while discontinuation staging correctly uses `>=`. Patients with delta exactly 0.3 are misclassified at initiation.
 
-## 27. `baseline_scr_new`: NA in `baseline_scr_days_to_admit` causes fallthrough {#bug-27}
-
-**Severity:** Moderate
-**File:** `Tables.Rmd` lines 856--858
-
-```r
-baseline_scr_new = case_when(
-  baseline_scr_days_to_admit != 0 & !is.na(baseline_scr) ~ baseline_scr,  # NA != 0 → NA → skip
-  baseline_scr_days_to_admit == 0 & ... ~ ...,                             # NA == 0 → NA → skip
-  baseline_scr_days_to_admit == 0 & ... ~ ...)                             # NA == 0 → NA → skip
-```
-
-If `baseline_scr_days_to_admit` is NA, all three branches evaluate to NA, and `baseline_scr_new` is NA even when `baseline_scr` has a valid value. Silently drops patients from AKIN staging.
-
----
-
-# Design Decisions to Document
-
-## 29. `criteria_4`: missing FiO2/SpO2 treated as no respiratory failure {#note-29}
-
-**Severity:** Low (design decision)
-
-Missing SpO2/FiO2 &rarr; NA ratio &rarr; `criteria_4 = NA` &rarr; recoded to 0. Assumes missing = no respiratory compromise.
-
 ## 30. `race_2`: missing race grouped with White {#note-30}
 
 **Severity:** Moderate (equity concern)
+**File:** `Tables.Rmd` line 1075
 
 `race_2 = if_else(race == 1 | is.na(race), 1, 0)` -- patients with missing race data are classified as White/Caucasian. Could bias adjusted analyses. Consider a separate "unknown" category.
 
 ## 31. Median imputation for `admit_meld_3` and `clif_c_score_new` {#note-31}
 
 **Severity:** Moderate (design decision)
+**File:** `Tables.Rmd` lines 1071--1074, 1088
 
 Single-value imputation underestimates variance. These imputed versions are used in criteria flags and potentially in models. The multiple imputation in `new_reqeust_0311.Rmd` does this more correctly.
 
 ## 32. `total_albumin`: `rowSums(na.rm=TRUE)` treats missing days as 0 dose {#note-32}
 
 **Severity:** Moderate (design decision)
+**File:** `Tables.Rmd` lines 1076--1085
 
 A patient with 7 days of data and 7 missing days gets the same `total_albumin` as a patient who genuinely received 0g on those 7 days. Systematically underestimates albumin exposure for patients with incomplete data.
 
 ## 34. `calculate_clif_c_score` parameter named `peak_creatinine` but receives `scr_terli_day0` {#note-34}
 
 **Severity:** Low (naming)
+**File:** `Tables.Rmd` line 211
 
 Misleading parameter name. The function is called with day 0 terlipressin creatinine, not peak hospitalization creatinine.
 
@@ -408,39 +251,28 @@ Misleading parameter name. The function is called with day 0 terlipressin creati
 ## Summary Table
 
 ::: {.callout-note}
-Bugs 1, 3, 9 are now **FIXED**.
+Bugs 1, 2, 3, 9, 11, 12 are now **FIXED**. Bugs 14, 18 are **not bugs** (intentional design).
 :::
 
 | # | Severity | Category | Issue | Status |
 |--:|:---------|:---------|:------|:-------|
-| 1 | **Critical** | Code | INU patients get MCM IDs | **FIXED** |
-| 3 | **Critical** | Code | Child-Pugh uses telemetry instead of bilirubin | **FIXED** |
-| 9 | **Critical** | Code | subgroup_master always empty | **FIXED** |
-| 20 | **High** | Clinical | MELD 3.0 sodium not capped 125--137 | Open |
-| 21 | **High** | Clinical | MELD 3.0 albumin not capped 1.5--3.5 | Open |
-| 23 | **High** | Clinical | CLIF-SOFA kidney failure threshold 1.5 should be 2.0 | Open |
-| 14 | **High** | Code | Survivor time-to-death uses 90 instead of actual follow-up | Open |
-| 18 | **High** | Code | Fine-Gray competing risk times inflated (from #14) | Open |
-| 25 | Moderate | Clinical | AKIN delta `> 0.3` should be `>= 0.3` (inconsistent) | Open |
-| 24 | Moderate | Clinical | Circulatory failure ignores vasopressor requirement | Open |
-| 22 | Moderate | Clinical | Bilirubin/INR not floored at 1.0 in MELD | Open |
-| 27 | Moderate | Code | NA in baseline_scr_days_to_admit causes fallthrough | Open |
-| 5 | Moderate | Code | CLIF-C treats missing labs as score 0 | Open |
-| 8 | Moderate | Code | last_scr_2 errors when Discont_Day=0 | Open |
+| **Code Check** | | | | |
+| 1 | Critical | Code | INU patients get MCM IDs | **FIXED** |
+| 3 | Critical | Code | Child-Pugh uses telemetry instead of bilirubin | **FIXED** |
+| 9 | Critical | Code | subgroup_master always empty | **FIXED** |
+| 2 | Moderate | Code | scr_terli_day7 missing from scr_vars | **FIXED** |
+| 11 | Low | Code | Trailing space in variable name | **FIXED** |
+| 12 | Moderate | Code | Wrong variable list in hospitalization table | **FIXED** |
 | 10 | Moderate | Code | mean() inside rowwise() is single-value | Open |
-| 12 | Moderate | Code | Wrong variable list in hospitalization table | Open |
-| 13 | Moderate | Code | CLIF-C HE grade 0 scored as 0 not 1 | Open |
-| 15 | Moderate | Code | Outcomes imputed alongside predictors | Open |
-| 17 | Moderate | Code | Fine-Gray pooling lacks Rubin's rules | Open |
-| 2 | Moderate | Code | scr_terli_day7 missing from scr_vars | Open |
-| 30 | Moderate | Design | Missing race grouped with White | Open |
-| 31 | Moderate | Design | Median imputation for MELD 3.0 / CLIF-C | Open |
-| 32 | Moderate | Design | total_albumin treats missing days as 0 dose | Open |
-| 19 | Low | Code | Factor levels not explicit in Fine-Gray | Open |
-| 7 | Low | Code | HRS_criteria_meld bare variable | Open |
-| 11 | Low | Code | Trailing space in variable name | Open |
 | 4 | Low | Code | estimate_creatinine not vectorized | Open |
-| 6 | Low | Code | CLIF-C respiratory NA handling | Open |
-| 16 | Low | Code | discont_before_day3 NA handling | Open |
-| 29 | Low | Design | Missing FiO2/SpO2 = no respiratory failure | Open |
-| 34 | Low | Design | CLIF-C parameter named peak_creatinine | Open |
+| **Variable Definition** | | | | |
+| 20 | **High** | Variable | MELD 3.0 sodium not capped 125--137 | Open |
+| 21 | **High** | Variable | MELD 3.0 albumin not capped 1.5--3.5 | Open |
+| 23 | **High** | Variable | CLIF-SOFA kidney failure threshold 1.5 should be 2.0 | Open |
+| 25 | Moderate | Variable | AKIN delta `> 0.3` should be `>= 0.3` | Open |
+| 24 | Moderate | Variable | Circulatory failure ignores vasopressor requirement | Open |
+| 22 | Moderate | Variable | Bilirubin/INR not floored at 1.0 in MELD | Open |
+| 30 | Moderate | Variable | Missing race grouped with White | Open |
+| 31 | Moderate | Variable | Median imputation for MELD 3.0 / CLIF-C | Open |
+| 32 | Moderate | Variable | total_albumin treats missing days as 0 dose | Open |
+| 34 | Low | Variable | CLIF-C parameter named peak_creatinine | Open |

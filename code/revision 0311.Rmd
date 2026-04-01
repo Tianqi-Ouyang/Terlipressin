@@ -381,7 +381,7 @@ selected_variables <- tolower(c( "dc_available_albumin___999",
   scr_vars <- c(
     "scr_admit", "baseline_scr", "baseline_scr_120to365_value", "scr_aki",
     "scr_terli_day0", "scr_terli_day1", "scr_terli_day2", "scr_terli_day3", 
-    "scr_terli_day4", "scr_terli_day5", "scr_terli_day6", "scr_terli_day8", 
+    "scr_terli_day4", "scr_terli_day5", "scr_terli_day6", "scr_terli_day7", "scr_terli_day8", 
     "scr_terli_day9", "scr_terli_day10", "scr_terli_day11", "scr_terli_day12", 
     "scr_terli_day13", "scr_day1_post_terli", "scr_day2_post_terli", "scr_day3_post_terli", 
     "peakhospit_scr", "nadirhospit_scr", 

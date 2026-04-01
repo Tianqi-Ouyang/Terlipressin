@@ -17,7 +17,7 @@ website:
       - href: data_summary.qmd
         text: Data Summary
       - href: bug_audit.qmd
-        text: Code Audit
+        text: Code Check
 
 format:
   html:

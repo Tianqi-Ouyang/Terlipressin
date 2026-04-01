@@ -4,370 +4,442 @@ author: "Tianqi Ouyang"
 date: last-modified
 ---
 
-Complete variable list from the Terlipressin Database REDCap Code Book (PID: 43500). The database contains 18 instruments with 1500+ fields. Treatment day instruments (Day 0--13) share identical structure; they are documented once below.
+Complete variable list from the Terlipressin Database REDCap Code Book (PID: 43500). The database contains 18 instruments with 1500+ fields. Treatment day instruments (Day 0--13) share identical structure and are documented once below.
 
 ## Demographics {#demographics}
 
-| # | Variable | Label | Type | Values / Unit |
-|--:|:---------|:------|:-----|:-------------|
+| # | Variable | Field Label | Type | Values / Unit |
+|--:|:---------|:-----------|:-----|:-------------|
 | 1 | `subjectid` | Subject ID | text | e.g. BCM-001 |
-| 7 | `date_birth` | Date of birth | date | Required |
-| 8 | `age` | Age | calc | `rounddown(datediff(date_birth, admit_date, "y"))` |
-| 9 | `sex_male` | Sex | radio | 1 = Male, 0 = Female |
-| 10 | `race` | Race | radio | 1 = White, 2 = Black, 3 = Asian, 4 = Other |
-| 11 | `hispanic` | Hispanic | radio | 1 = Hispanic or Latino, 0 = Not Hispanic or Latino |
-| 12 | `insurance_type` | Type of insurance | radio | 1 = Medicare, 2 = Medicaid, 3 = Private, 4 = Self pay, 5 = Other |
-| 14 | `cirrhosis_etiology` | Cirrhosis etiology | radio | 1 = Alcohol, 2 = MASH (NASH), 3 = HCV, 4 = HCV+Alcohol, 5 = MetALD, 6 = Other |
-| 16 | `etoh_hepatitis` | Alcohol-associated hepatitis | yesno | 1 = Yes, 0 = No |
 | 4 | `admit_date` | Admit date | date | Required |
-| 5 | `admit_admitservice` | Admitting service | radio | 1 = Medicine, 2 = ICU, 3 = Primary Liver Service, 4 = Surgical, 5 = Other |
-| 6 | `admit_admitroute` | Location admitted from | radio | 1 = ER, 2 = Transfer, 3 = Direct admission |
-| 17 | `admit_reason` | Reason(s) for admission | checkbox | 1 = Overt HE, 2 = Portal HTN bleed, 3 = Ascites/Anasarca, 4 = Infection, 5 = AKI, 6 = Other, 7 = Liver-unrelated |
+| 5 | `admit_admitservice` | Admitting Service | categorical | 1 = Medicine, 2 = ICU, 3 = Primary Liver Service, 4 = Surgical, 5 = Other |
+| 6 | `admit_admitroute` | Location patient was admitted from | categorical | 1 = Emergency Room, 2 = Transfer from outside hospital, 3 = Direct admission |
+| 7 | `date_birth` | Date of birth | date | Required |
+| 8 | `age` | Age | calculated | `rounddown(datediff(date_birth, admit_date, "y"))` |
+| 9 | `sex_male` | Sex | categorical | 1 = Male, 0 = Female |
+| 10 | `race` | Race | categorical | 1 = White, 2 = Black, 3 = Asian, 4 = Other |
+| 11 | `hispanic` | Hispanic | categorical | 1 = Hispanic or Latino, 0 = Not Hispanic or Latino |
+| 12 | `insurance_type` | Type of insurance | categorical | 1 = Medicare, 2 = Medicaid, 3 = Private, 4 = Self pay, 5 = Other |
+| 14 | `cirrhosis_etiology` | Cirrhosis etiology | categorical | 1 = Alcohol, 2 = MASH (NASH), 3 = HCV, 4 = HCV+Alcohol, 5 = MetALD (Alcohol + MASH), 6 = Other |
+| 16 | `etoh_hepatitis` | Does patient have alcohol associated hepatitis? | binary | 1 = Yes, 0 = No |
+| 17 | `admit_reason` | Reason(s) for admission | checkbox | 1 = Overt HE, 2 = Portal hypertension related bleed, 3 = Ascites/Anasarca, 4 = Infection, 5 = AKI, 6 = Other, 7 = Liver-unrelated |
 
 ## Medical History {#medical-history}
 
 ### Comorbidities
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 20 | `htn_medical_hx` | Hypertension | radio | 0 = No, 1 = Yes |
-| 21 | `dm_medical_hx` | Diabetes | radio | 0 = No, 1 = Yes |
-| 22 | `ckd_medical_hx` | Chronic kidney disease | radio | 0 = No, 1 = Yes |
-| 23 | `cad_medical_hx` | Coronary artery disease | yesno | 1 = Yes, 0 = No |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 20 | `htn_medical_hx` | History of hypertension? | categorical | 0 = No, 1 = Yes |
+| 21 | `dm_medical_hx` | History of diabetes? | categorical | 0 = No, 1 = Yes |
+| 22 | `ckd_medical_hx` | History of chronic kidney disease? | categorical | 0 = No, 1 = Yes |
+| 23 | `cad_medical_hx` | History of coronary artery disease? | binary | 1 = Yes, 0 = No |
 
-### Pre-Admission Medications
+### Pre-Admission / Home Medications
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 24 | `nsbb_preadmission` | NSBB | radio | 0 = No, 1 = Yes |
-| 25 | `nsbb_type_preadmission` | NSBB type | radio | 1 = Propranolol, 2 = Carvedilol, 3 = Nadolol, 4 = Other |
-| 26 | `nsbb_dose_preadmission` | NSBB total daily dose (mg) | number | 0--160 |
-| 27 | `ace_arb_preadmission` | ACEi/ARB | radio | 0 = No, 1 = Yes |
-| 28 | `nsaid_preadmission` | NSAID | radio | 0 = No, 1 = Yes |
-| 29 | `diuretics_preadmission` | Loop diuretic | radio | 0 = No, 1 = Yes |
-| 31 | `sbp_ppx_preadmission` | SBP prophylaxis | radio | 0 = None, 1 = Ciprofloxacin, 2 = Sulfamethoxazole/TMP, 3 = Other |
-| 32 | `lactulose_preadmission` | Lactulose | radio | 0 = No, 1 = Yes |
-| 33 | `rifaximin_preadmission` | Rifaximin | radio | 0 = No, 1 = Yes |
-| 34 | `mido_preadmission` | Midodrine | yesno | 1 = Yes, 0 = No |
-| 35 | `mido_dose_preadmission` | Midodrine daily dose (mg) | text | |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 24 | `nsbb_preadmission` | Non-selective beta-blocker? | categorical | 0 = No, 1 = Yes |
+| 25 | `nsbb_type_preadmission` | Type of non-selective beta blocker? | categorical | 1 = Propranolol, 2 = Carvedilol, 3 = Nadolol, 4 = Other |
+| 26 | `nsbb_dose_preadmission` | Total dose per day of non-selective beta blocker total dose (mg) | number | 0--160 |
+| 27 | `ace_arb_preadmission` | ACE-inhibitor or ARB? | categorical | 0 = No, 1 = Yes |
+| 28 | `nsaid_preadmission` | NSAID use? | categorical | 0 = No, 1 = Yes |
+| 29 | `diuretics_preadmission` | Loop diuretic? | categorical | 0 = No, 1 = Yes |
+| 30 | `potsp_diuretic_preadmission` | Potassium sparing diuretic? | binary | 1 = Yes, 0 = No |
+| 31 | `sbp_ppx_preadmission` | Spontaneous bacterial peritonitis (SBP) prophylaxis? | categorical | 0 = None, 1 = Ciprofloxacin, 2 = Sulfamethoxazole/trimethoprim, 3 = Other |
+| 32 | `lactulose_preadmission` | Lactulose? | categorical | 0 = No, 1 = Yes |
+| 33 | `rifaximin_preadmission` | Rifaximin? | categorical | 0 = No, 1 = Yes |
+| 34 | `mido_preadmission` | Midodrine | binary | 1 = Yes, 0 = No |
+| 35 | `mido_dose_preadmission` | Total dose of midodrine per day (mg) | text | |
 
-### Previous Cirrhosis Complications
+### History of Previous Cirrhosis Complications
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 36 | `ascites_previous_comp` | Ascites | yesno | 1/0 |
-| 37 | `refascites_previous_comp` | Refractory ascites | yesno | 1/0 |
-| 38 | `he_previous_comp` | Hepatic encephalopathy | yesno | 1/0 |
-| 39 | `sbp_previous_comp` | SBP | yesno | 1/0 |
-| 40 | `nonsbp_previous_comp` | Non-SBP infections (90d) | yesno | 1/0 |
-| 41 | `phtn_bleed_previous_comp` | Portal HTN bleed | yesno | 1/0 |
-| 42 | `hcc_previous_comp` | HCC | yesno | 1/0 |
-| 43 | `tips_previous_comp` | TIPS | radio | 0 = No, 1 = Yes |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 36 | `ascites_previous_comp` | Ascites? | binary | 1 = Yes, 0 = No |
+| 37 | `refascites_previous_comp` | Is ascites refractory? Failed maximum doses of diuretics or Diuretic intolerant or Requiring paracentesis >1x within 2 weeks | binary | 1 = Yes, 0 = No |
+| 38 | `he_previous_comp` | Hepatic encephalopathy? | binary | 1 = Yes, 0 = No |
+| 39 | `sbp_previous_comp` | Spontaneous bacterial peritonitis (SBP)? | binary | 1 = Yes, 0 = No |
+| 40 | `nonsbp_previous_comp` | Non-SBP infections (within previous 90 days)? | binary | 1 = Yes, 0 = No |
+| 41 | `phtn_bleed_previous_comp` | Portal hypertension related bleed? | binary | 1 = Yes, 0 = No |
+| 42 | `hcc_previous_comp` | Hepatocellular carcinoma? | binary | 1 = Yes, 0 = No |
+| 43 | `tips_previous_comp` | History of TIPS? | categorical | 0 = No, 1 = Yes |
 
 ### Baseline Creatinine
 
-| # | Variable | Label | Type | Values / Unit |
-|--:|:---------|:------|:-----|:-------------|
-| 44 | `baseline_scr` | Baseline SCr | number | mg/dL, 0.2--10; within 3 months pre-admission |
-| 46 | `baseline_scr_days_to_admit` | Days from baseline SCr to admit | calc | |
-| 47 | `baseline_scr_outpt` | Baseline is outpatient? | yesno | 1/0 |
-| 48 | `baseline_scr_120to365` | Outpatient SCr 120--365d available? | yesno | 1/0 |
-| 49 | `baseline_scr_120to365_value` | Outpatient SCr 120--365d value | text | mg/dL |
-| 50 | `aki_previous_90days` | AKI within 90 days? | radio | 0 = No, 1 = Yes |
-| 51 | `aki_events_previous90days` | Number of AKI events prior 90d | text | |
+| # | Variable | Field Label | Type | Values / Unit |
+|--:|:---------|:-----------|:-----|:-------------|
+| 44 | `baseline_scr` | Baseline creatinine (creatinine value within three months before hospitalization; if more than one value, use closest to admission; if no baseline, use admission creatinine) | number | mg/dL, 0.2--10, Required |
+| 46 | `baseline_scr_days_to_admit` | Days from baseline serum creatinine to admission date | calculated | |
+| 47 | `baseline_scr_outpt` | Was baseline creatinine an outpatient value? | binary | 1 = Yes, 0 = No |
+| 48 | `baseline_scr_120to365` | Is there an outpatient serum creatinine value 120-365 days from baseline serum creatinine? | binary | 1 = Yes, 0 = No |
+| 49 | `baseline_scr_120to365_value` | Outpatient serum creatinine value 120-365 days from baseline serum creatinine value (mg/dL) | text | mg/dL |
+| 50 | `aki_previous_90days` | Known AKI within 90-days of admission? | categorical | 0 = No, 1 = Yes |
+| 51 | `aki_events_previous90days` | How many known AKI events in the previous 90 days? | text | |
 
 ## Labs within 72 Hours of Admission {#admit-labs}
 
-| # | Variable | Label | Unit | Type |
-|--:|:---------|:------|:-----|:-----|
-| 58 | `scr_admit` | Serum creatinine | mg/dL | number |
-| 60 | `cystatinc_admit` | Cystatin C | mg/L | number |
-| 62 | `tbili_admit` | Total bilirubin | mg/dL | number |
-| 64 | `inr_admit` | INR | -- | number |
-| 66 | `sodium_admit` | Serum sodium | mmol/L | number |
-| 68 | `albumin_admit` | Albumin | g/dL | number |
-| 70 | `lactate_admit` | Lactate | mmol/L | number |
-| 71 | `hegrade_admit` | HE grade at admission | -- | radio: 0 = None, 1--4 = Grade 1--4 |
-| 72 | `admit_ascites` | Ascites severity | -- | radio: 1 = Absent, 2 = Slight/Moderate, 3 = Large/Tense |
+*Within 72 hours of admission, use the closest value to admission date.*
+
+| # | Variable | Field Label | Type | Unit |
+|--:|:---------|:-----------|:-----|:-----|
+| 58 | `scr_admit` | Serum creatinine | number | mg/dL |
+| 60 | `cystatinc_admit` | Cystatin C | number | mg/L |
+| 62 | `tbili_admit` | Total bilirubin | number | mg/dL |
+| 64 | `inr_admit` | INR | number | -- |
+| 66 | `sodium_admit` | Serum sodium | number | mmol/L |
+| 68 | `albumin_admit` | Admit albumin | number | g/dL |
+| 70 | `lactate_admit` | Admit Lactate | number | mmol/L |
+| 71 | `hegrade_admit` | HE grade at admission | categorical | 0 = None, 1 = Grade 1, 2 = Grade 2, 3 = Grade 3, 4 = Grade 4 |
+| 72 | `admit_ascites` | Ascites severity at admission | categorical | 1 = Absent, 2 = Slight/Moderate, 3 = Large/Tense |
 
 ## AKI Details {#aki-details}
 
-### Diagnosis
+### Details of Initial AKI Diagnosis
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 74 | `aki_date` | Date AKI criteria met | date | Required |
-| 75 | `days_admit_to_aki` | Days admission to AKI | calc | |
-| 76 | `aki_precipitant` | Precipitant | checkbox | 1 = Volume loss, 2 = SBP, 3 = Non-SBP infection, 4 = GI bleed, 5 = Nephrotoxic drugs, 6 = Other, 7 = No identifiable |
-| 77 | `aki_precipitant_nsbpinf` | Non-SBP infection type | radio | 1 = Pneumonia, 2 = UTI, 3 = Bacteremia, 4 = Other |
-| 52 | `transfer_aki` | Transferred with AKI | radio | 0 = No, 1 = Yes |
-| 54 | `transfer_aki_days_toadmit` | Days transfer to admission | calc | |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 74 | `aki_date` | Date when ICA AKI criteria met (increase in sCr &ge;0.3 mg/dl within 48 hours; or a percentage increase in sCr &ge;50% from baseline) | date | Required |
+| 75 | `days_admit_to_aki` | Days from admission to ICA AKI event | calculated | |
+| 76 | `aki_precipitant` | Precipitant of AKI | checkbox | 1 = Non-bleeding volume loss/excessive diuretic use, 2 = SBP, 3 = Non-SBP infection, 4 = GI bleed, 5 = Nephrotoxic drugs, 6 = Other, 7 = No identifiable precipitant |
+| 77 | `aki_precipitant_nsbpinf` | If precipitant was non-SBP infection, what was it? | categorical | 1 = Pneumonia, 2 = UTI, 3 = Bacteremia, 4 = Other |
+| 52 | `transfer_aki` | Was the patient transferred from another hospital with an AKI? | categorical | 0 = No, 1 = Yes |
+| 54 | `transfer_aki_days_toadmit` | Days from transfer to admission date | calculated | |
 
-### Vitals at AKI
+### Vital Signs at Time of Initial AKI
 
-| # | Variable | Label | Unit |
-|--:|:---------|:------|:-----|
-| 80 | `aki_weight` | Body weight | kg |
-| 81 | `aki_height` | Height | cm |
-| 82 | `aki_hr` | Heart rate | BPM |
-| 83 | `aki_sbp` | Systolic BP | mmHg |
-| 84 | `aki_dbp` | Diastolic BP | mmHg |
-| 85 | `aki_map` | MAP | mmHg (calc) |
-| 86 | `aki_spo2` | SpO2 | % |
-| 87 | `aki_pao2` | PaO2 | mmHg |
-| 88 | `fio2_aki` | FiO2 | % |
+| # | Variable | Field Label | Type | Unit |
+|--:|:---------|:-----------|:-----|:-----|
+| 80 | `aki_weight` | Body weight | number | kg (30--150) |
+| 81 | `aki_height` | Height | text | cm |
+| 82 | `aki_hr` | Heart Rate (pick the highest value of day of AKI diagnosis) | number | BPM |
+| 83 | `aki_sbp` | Systolic BP (pick the lowest value of day of AKI diagnosis) | number | mmHg |
+| 84 | `aki_dbp` | Diastolic BP (pick the value associated with systolic BP above) | number | mmHg |
+| 85 | `aki_map` | MAP | calculated | mmHg; `round((1/3)*SBP + (2/3)*DBP, 2)` |
+| 86 | `aki_spo2` | SpO2 (pick the lowest value of day of AKI diagnosis) | number | % |
+| 87 | `aki_pao2` | PaO2 (convert lowest value of SpO2 to PaO2) | number | mmHg (40--150) |
+| 88 | `fio2_aki` | FiO2 (pick value associated with SpO2; room air is 0.21, add 0.04 for every L of nasal canula) | number | % (0--100) |
 
-### Labs at AKI
+### Labs at Time of Initial AKI
 
-| # | Variable | Label | Unit |
-|--:|:---------|:------|:-----|
-| 91 | `sodium_aki` | Serum sodium | mmol/L |
-| 93 | `potassium_aki` | Serum potassium | mmol/L |
-| 95 | `scr_aki` | Serum creatinine | mg/dL |
-| 97 | `cystatinc_aki` | Cystatin C | mg/L |
-| 99 | `bun_aki` | BUN | mg/dL |
-| 101 | `tbili_aki` | Total bilirubin | mg/dL |
-| 103 | `albumin_aki` | Albumin | g/dL |
-| 105 | `inr_aki` | INR | -- |
-| 107 | `wbc_aki` | WBC | 10^9/L |
-| 109 | `plt_aki` | Platelet count | 10^9/L |
+*Pick worst value on day of AKI as specified.*
 
-### Prognosis Scores at AKI
+| # | Variable | Field Label | Type | Unit |
+|--:|:---------|:-----------|:-----|:-----|
+| 91 | `sodium_aki` | Serum sodium (pick the lowest value) | number | mmol/L |
+| 93 | `potassium_aki` | Serum potassium (pick the highest value) | number | mmol/L |
+| 95 | `scr_aki` | Serum creatinine (pick the highest value) | number | mg/dL, Required |
+| 97 | `cystatinc_aki` | Cystatin C (pick the highest value) | number | mg/L |
+| 99 | `bun_aki` | BUN (pick the highest value) | number | mg/dL |
+| 101 | `tbili_aki` | Total bilirubin (pick the highest value) | number | mg/dL |
+| 103 | `albumin_aki` | Albumin (pick the lowest value) | number | g/dL |
+| 105 | `inr_aki` | INR (pick the highest value) | number | -- |
+| 107 | `wbc_aki` | Total WBC (pick the highest value) | number | 10^9/L |
+| 109 | `plt_aki` | Platelet count (pick the lowest value) | number | 10^9/L |
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 110 | `he_aki` | HE grade on day of AKI | radio | 0 = None, 1--4 = Grade 1--4 |
-| 111 | `ascites_aki` | Ascites on day of AKI | radio | 1 = Absent, 2 = Slight/Moderate, 3 = Large/Tense |
-| 112 | `rrt_aki` | RRT on day of AKI | radio | 0 = No, 1 = Yes |
-| 113 | `mv_aki` | Intubated on day of AKI | radio | 0 = No, 1 = Yes |
-| 116 | `pressors_aki` | Vasopressors on day of AKI | radio | 0 = No, 1 = Yes |
+### Details for Prognosis Scores at Time of Initial AKI
+
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 110 | `he_aki` | HE grade on day of AKI | categorical | 0 = None, 1 = Grade 1 (minimal change in consciousness), 2 = Grade 2 (gross disorientation, drowsiness, asterixis), 3 = Grade 3 (marked confusion, sleeping most of the time but arousable), 4 = Grade 4 (comatose) |
+| 111 | `ascites_aki` | Ascites severity on day of AKI | categorical | 1 = Absent, 2 = Slight/Moderate, 3 = Large/Tense |
+| 112 | `rrt_aki` | Was the patient on renal replacement therapy on day of AKI? | categorical | 0 = No, 1 = Yes |
+| 113 | `mv_aki` | Was the patient intubated on day of AKI? | categorical | 0 = No, 1 = Yes |
+| 116 | `pressors_aki` | Was the patient on vasopressors on day of AKI (e.g., norepinephrine, vasopressin)? Not including terlipressin, midodrine/octreotide. | categorical | 0 = No, 1 = Yes |
 
 ## Cardio-Pulmonary History {#cardiopulmonary}
 
-| # | Variable | Label | Type | Values / Unit |
-|--:|:---------|:------|:-----|:-------------|
-| 118 | `chest_imaging` | Chest imaging pre-terli | yesno | 1/0 |
-| 119 | `chest_imaging_pulmedema` | Pulmonary edema | yesno | 1/0 |
-| 120 | `chest_imaging_effusion` | Pleural effusion | yesno | 1/0 |
-| 121 | `ecg` | ECG obtained | yesno | 1/0 |
-| 124 | `ecg_qtc` | Corrected QTc | number | |
-| 125 | `echo` | Echo within 1 year | yesno | 1/0 |
-| 127 | `days_to_echo` | Days admission to echo | calc | |
-| 129 | `echo_ef` | LV ejection fraction | number | % |
+### Pulmonary and Cardiac Parameters
+
+| # | Variable | Field Label | Type | Values / Unit |
+|--:|:---------|:-----------|:-----|:-------------|
+| 118 | `chest_imaging` | Chest imaging obtained prior to terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 119 | `chest_imaging_pulmedema` | Presence of pulmonary edema/congestion? | binary | 1 = Yes, 0 = No |
+| 120 | `chest_imaging_effusion` | Presence of pleural effusion? | binary | 1 = Yes, 0 = No |
+| 121 | `ecg` | ECG obtained prior to terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 124 | `ecg_qtc` | Corrected QTC on ECG | number | |
+| 125 | `echo` | Echocardiogram within 1 year of terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 127 | `days_to_echo` | Days from admission to echocardiogram | calculated | |
+| 129 | `echo_ef` | LV ejection fraction (take average if range is reported) | number | % |
 | 131 | `echo_lateral_e` | Lateral e' velocity | number | cm/sec |
-| 133 | `echo_trpeak` | Peak TR velocity | number | cm/sec |
-| 135 | `echo_gls` | Global longitudinal strain | number | % |
+| 133 | `echo_trpeak` | Peak tricuspid regurgitation velocity | number | cm/sec |
+| 135 | `echo_gls` | Average global longitudinal strain | number | % |
 | 137 | `echo_earatio` | Mitral E/A ratio | number | |
 | 139 | `echo_eeratio` | E/e' ratio | number | |
-| 141 | `echo_rvsp` | RV systolic pressure | number | mmHg |
-| 143 | `echo_pasp` | PA systolic pressure | number | mmHg |
-| 145 | `echo_lavi` | Left atrial volume index | number | mL/m2 |
-| 147 | `echo_tr` | TR velocity | number | m/sec |
+| 141 | `echo_rvsp` | Right ventricular systolic pressure | number | mmHg |
+| 143 | `echo_pasp` | Pulmonary artery systolic pressure | number | mmHg |
+| 145 | `echo_lavi` | Left atrial volume index (LAVI) | number | mL/m2 |
+| 147 | `echo_tr` | Tricuspid regurgitation (TR) velocity | number | m/sec |
 
 ## HRS Diagnosis Details {#hrs-diagnosis}
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 149 | `hrs_aki_criteria` | ICA HRS-AKI criteria | checkbox | 1 = Cirrhosis + ascites, 2 = AKI per ICA, 3 = No response 2d diuretic withdrawal + albumin, 4 = Absence of shock, 5 = No nephrotoxics, 6 = No proteinuria >500, 7 = No microhematuria, 8 = Normal kidney US |
-| 150 | `albumin_before_terli` | Albumin given pre-terli | yesno | 1/0 |
-| 151 | `totalalbumin_before_terli` | Total albumin pre-terli (g) | number | |
-| 152 | `albvolume_before_terli` | Albumin volume pre-terli (mL) | number | |
-| 153 | `crystalloid_before_terli` | Crystalloids given | radio | 0/1 |
-| 155 | `saline_vol_before_terli` | Normal saline vol (mL) | number | |
-| 156 | `lr_volume_before_terli` | Lactated ringers vol (mL) | number | |
-| 158 | `prbc_trans_before_terli` | PRBC transfusion | radio | 0/1 |
-| 159 | `prbc_qaunt_before_terli` | PRBC units | number | |
-| 160 | `totalvolume_before_terli` | Total volume input (mL) | text | |
-| 161 | `total_uo_before_terli` | Total urine output (mL) | text | |
-| 162 | `nsbb_before_terli` | NSBB use pre-terli | radio | 1 = Withdrawn, 2 = Tapered, 3 = Continued, 4 = N/A |
-| 164 | `mido_before_terli` | Midodrine pre-terli | yesno | 1/0 |
-| 169 | `mido_maxdose_before_terli` | Max midodrine dose/day (mg) | text | |
-| 170 | `oct_before_terli` | Octreotide pre-terli | yesno | 1/0 |
-| 175 | `oct_maxdose_before_terli` | Max octreotide dose/day (mcg) | text | |
-| 176 | `ne_before_terli` | Norepinephrine pre-terli | yesno | 1/0 |
-| 182 | `gihep_consult` | GI/Hep consultation | yesno | 1/0 |
-| 185 | `neph_consult` | Nephrology consultation | yesno | 1/0 |
-| 188 | `pall_consult` | Palliative care consultation | yesno | 1/0 |
-| 191 | `code_status` | Code status | radio | 1 = Full code, 2 = DNR |
+### HRS-AKI Diagnosis Details
+
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 149 | `hrs_aki_criteria` | Was ICA HRS-AKI criteria met? (Select all criteria that were met) | checkbox | 1 = Cirrhosis with ascites, 2 = Diagnosis of AKI according to ICA-AKI criteria, 3 = No response after 2 consecutive days of diuretic withdrawal and plasma volume expansion with albumin (1 g per kg of body weight), 4 = Absence of shock, 5 = No current or recent use of nephrotoxic drugs, 6 = Absence of proteinuria (>500 mg/day), 7 = Absence of microhematuria (>50 RBCs per HPF), 8 = Normal findings on kidney ultrasonography |
+
+### Volume Resuscitation Prior to Terlipressin
+
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 150 | `albumin_before_terli` | Was albumin given from time of admission to terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 151 | `totalalbumin_before_terli` | Total albumin given from time of admission to terlipressin initiation (grams) | number | grams |
+| 152 | `albvolume_before_terli` | Total volume of albumin given from time of admission to terlipressin initiation (mL) | number | mL |
+| 153 | `crystalloid_before_terli` | Was crystalloids (normal saline, lactated ringers) given from time of admission to terlipressin initiation? | categorical | 0 = No, 1 = Yes |
+| 155 | `saline_vol_before_terli` | Total volume of normal saline given from time of admission to terlipressin initiation (mL) | number | mL |
+| 156 | `lr_volume_before_terli` | Total volume of lactated ringers given from time of admission to terlipressin initiation (mL) | number | mL |
+| 158 | `prbc_trans_before_terli` | Was packed red blood cell transfusion given from time of admission to terlipressin initiation? | categorical | 0 = No, 1 = Yes |
+| 159 | `prbc_qaunt_before_terli` | How many units of packed red blood cells given from time of admission to terlipressin initiation (units) | number | units |
+| 160 | `totalvolume_before_terli` | Total volume (input) given from time of admission to terlipressin initiation (mL) | text | mL |
+| 161 | `total_uo_before_terli` | Total urine output (mL) from time of admission to terlipressin initiation | text | mL |
+
+### Medications Prior to Terlipressin
+
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 162 | `nsbb_before_terli` | Non-selective beta blocker use from time of admission to terlipressin initiation? | categorical | 1 = Withdrawn, 2 = Tapered, 3 = Continued, 4 = Not applicable |
+| 164 | `mido_before_terli` | Midodrine given from time of admission to terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 166 | `days_first_mido_before_terli` | Days from admission to first dose of midodrine | calculated | |
+| 168 | `days_total_mido_before_terli` | Days from admission to last dose of midodrine before terlipressin initiation | calculated | |
+| 169 | `mido_maxdose_before_terli` | What was the maximum total dose of midodrine given in a day (mg) | text | mg |
+| 170 | `oct_before_terli` | Octreotide given from time of admission to terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 172 | `days_first_oct_before_terli` | Days from admission to first dose of octreotide | calculated | |
+| 174 | `days_total_oct_before_terli` | Days from admission to last dose of octreotide before terlipressin initiation | calculated | |
+| 175 | `oct_maxdose_before_terli` | What was the maximum total dose of octreotide given in a day (mcg) | text | mcg |
+| 176 | `ne_before_terli` | Norepinephrine given from time of admission to terlipressin initiation? | binary | 1 = Yes, 0 = No |
+| 178 | `days_first_ne_before_terli` | Days from admission to first dose of norepinephrine | calculated | |
+| 180 | `days_total_ne_before_terli` | Days from admission to last dose of norepinephrine before terlipressin initiation | calculated | |
+| 181 | `norepi_dose_before_terli` | What was the maximum total dose of norepinephrine given in a day (mcg) | text | mcg |
+
+### Consultation Information
+
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 182 | `gihep_consult` | GI/Hep consultation | binary | 1 = Yes, 0 = No |
+| 184 | `days_to_gihep_consult` | Days from admission to GI/Hep consultation | calculated | |
+| 185 | `neph_consult` | Nephrology consultation | binary | 1 = Yes, 0 = No |
+| 187 | `days_to_neph_consult` | Days from admission to nephrology consultation | calculated | |
+| 188 | `pall_consult` | Palliative care consultation | binary | 1 = Yes, 0 = No |
+| 190 | `days_to_pall_consult` | Days from admission to palliative care consultation | calculated | |
+| 191 | `code_status` | Code status | categorical | 1 = Full code, 2 = DNR |
 
 ## Urinary Indices {#urinary-indices}
 
-| # | Variable | Label | Unit |
-|--:|:---------|:------|:-----|
-| 192 | `ua_hrs` | Urine analysis available | radio: 0/1 |
-| 195 | `ua_na_hrs` | Urine sodium available | yesno |
-| 198 | `ua_na_value_hrs` | Urine sodium | mmol/L |
-| 199 | `sna_value_day_of_ua_na_hrs` | Serum sodium on day of urine Na | mmol/L |
-| 200 | `ua_cr_hrs` | Urine creatinine available | yesno |
-| 203 | `ua_cr_value_hrs` | Urine creatinine | mg/dL |
-| 204 | `scr_value_day_of_ua_cr_hrs` | Serum Cr on day of urine Cr | mg/dL |
-| 205 | `ua_urea_hrs` | Urine urea nitrogen available | yesno |
-| 208 | `ua_urea_value_hrs` | Urine urea nitrogen | mg/dL |
-| 210 | `fena_hrs` | FeNa (%) | calc |
-| 211 | `feurea_hrs` | FEUrea (%) | calc |
-| 215 | `ungal_value_hrs` | Urine NGAL | ng/mL |
-| 216 | `ua_rbc_hrs` | Urine RBCs per HPF | number |
-| 217 | `uaprotein_hrs` | Urine protein | mg |
-| 218 | `ua_granularcasts_hrs` | Granular casts | yesno |
-| 219 | `ua_epi_cells_hrs` | Tubular epithelial cells | yesno |
+| # | Variable | Field Label | Type | Unit |
+|--:|:---------|:-----------|:-----|:-----|
+| 192 | `ua_hrs` | Urine analysis available? | categorical | 0 = No, 1 = Yes |
+| 195 | `ua_na_hrs` | Urine sodium available? | binary | 1 = Yes, 0 = No |
+| 198 | `ua_na_value_hrs` | Urine sodium (if <10, enter 9; if <20, enter 19) | number | mmol/L |
+| 199 | `sna_value_day_of_ua_na_hrs` | Serum sodium on day of urine sodium (if not collected on day of, use closest value within 24 hours) | text | mmol/L |
+| 200 | `ua_cr_hrs` | Urine creatinine available? | binary | 1 = Yes, 0 = No |
+| 203 | `ua_cr_value_hrs` | Urine creatinine | number | mg/dL |
+| 204 | `scr_value_day_of_ua_cr_hrs` | Serum creatinine on day of urine creatinine (if not collected on day of, use closest value within 24 hours) | text | mg/dL |
+| 205 | `ua_urea_hrs` | Urine urea nitrogen available? | binary | 1 = Yes, 0 = No |
+| 208 | `ua_urea_value_hrs` | Urine urea nitrogen | number | mg/dL |
+| 210 | `fena_hrs` | FeNa (%) | calculated | |
+| 211 | `feurea_hrs` | FEUrea (%) | calculated | |
+| 212 | `ungal_hrs` | Urine NGAL available? | binary | 1 = Yes, 0 = No |
+| 215 | `ungal_value_hrs` | Urine NGAL | number | ng/mL |
+| 216 | `ua_rbc_hrs` | Number of urine rbcs per high power field on urine analysis | number | per HPF |
+| 217 | `uaprotein_hrs` | Amount of protein in urine with spot check or 24-hour urine collection (spot check: mg protein/g Cr, or total mg for 24hr collection) | number | mg |
+| 218 | `ua_granularcasts_hrs` | Presence of urine granular casts on urine analysis? | binary | 1 = Yes, 0 = No |
+| 219 | `ua_epi_cells_hrs` | Presence of urine tubular epithelial cells on urine analysis? | binary | 1 = Yes, 0 = No |
 
 ## Terlipressin Treatment Days 0--13 {#treatment-days}
 
 Each treatment day (Day 0 through Day 13) contains identical fields. Variables are suffixed `_day0` through `_day13`. Below uses `N` as placeholder.
 
-### Discontinuation & Adverse Events
+### Terlipressin Treatment
 
-| Variable Pattern | Label | Type | Values |
-|:----------------|:------|:-----|:-------|
-| `discont_terli_dayN` | Discontinued? | yesno | 1/0 |
-| `discont_reason_terli_dayN` | Reason | radio | 1 = AE, 2 = HRS Reversal, 3 = Worsening/RRT, 4 = Death, 5 = Hospice, 6 = ICU decompensation, 7 = Respiratory failure, 8 = Ischemic event, 9 = Other |
-| `terli_ae_abdpain_dayN` | Abdominal pain | yesno | |
-| `terli_ae_nausea_dayN` | Nausea | yesno | |
-| `terli_ae_diarrhea_dayN` | Diarrhea | yesno | |
-| `terli_ae_volover_dayN` | Volume overload | yesno | |
-| `terli_ae_brady_dayN` | Bradycardia | yesno | |
-| `terli_other_dayN` | Other AE | text | |
+| Variable Pattern | Field Label | Type | Values |
+|:----------------|:-----------|:-----|:-------|
+| `terli_date_dayN` | Day N date | date | |
+| `days_to_terli_initiation_dayN` | Days from admission to day N of terlipressin | calculated | |
+| `discont_terli_dayN` | Was terlipressin discontinued? | binary | 1 = Yes, 0 = No |
+| `discont_reason_terli_dayN` | What was the reason of discontinuation? | categorical | 1 = Adverse Effect (abdominal pain, nausea, diarrhea, volume overload, bradycardia), 2 = Achieved HRS Reversal (serum creatinine < or = 1.5 mg/dL), 3 = Worsening Kidney Function or Requiring Renal Replacement Therapy, 4 = Death, 5 = Transitioned to Hospice, 6 = Further Decompensation Requiring ICU care, 7 = Respiratory Failure, 8 = Ischemic Related Event (skin discoloration, cyanosis, organ ischemia), 9 = Other |
+
+### Adverse Events (shown if discontinued due to adverse effect)
+
+| Variable Pattern | Field Label | Type | Values |
+|:----------------|:-----------|:-----|:-------|
+| `terli_ae_abdpain_dayN` | Abdominal pain | binary | 1 = Yes, 0 = No |
+| `terli_ae_nausea_dayN` | Nausea | binary | 1 = Yes, 0 = No |
+| `terli_ae_diarrhea_dayN` | Diarrhea | binary | 1 = Yes, 0 = No |
+| `terli_ae_volover_dayN` | Volume Overload | binary | 1 = Yes, 0 = No |
+| `terli_ae_brady_dayN` | Bradycardia | binary | 1 = Yes, 0 = No |
+| `terli_rrtmod_dayN` | What was the modality of renal replacement therapy | categorical | 0 = Not applicable, 1 = Intermittent, 2 = Continuous |
+| `terli_other_dayN` | If other, what was the reason | text | |
 
 ### Dosing
 
-| Variable Pattern | Label | Type |
-|:----------------|:------|:-----|
-| `terli_route_day0` | Route (Day 0 only) | radio: 1 = Bolus, 2 = Continuous |
-| `dosechange_terli_dayN` | Dose adjusted? | yesno |
-| `doseadjust_terli_dayN` | New dose | text (mg) |
-| `total_terli_dayN` | Total terlipressin dose | text (mg) |
+| Variable Pattern | Field Label | Type | Values |
+|:----------------|:-----------|:-----|:-------|
+| `terli_route_day0` | Route of terlipressin initiation? (Day 0 only) | categorical | 1 = Bolus, 2 = Continuous |
+| `initial_bolusdose_terli_day0` | If bolus, initial dose? (mg) | text | mg |
+| `initial_contdose_terli_day0` | If continuous, initial dose? (mg) | text | mg |
+| `dosechange_terli_dayN` | If no, was dose adjusted? | binary | 1 = Yes, 0 = No |
+| `doseadjust_terli_dayN` | What was the new dose? | text | mg |
+| `total_terli_dayN` | Total terlipressin dose for day N (mg) | text | mg |
 
-### Concomitant Medications
+### Concomitant Medications (per day)
 
-| Variable Pattern | Label | Unit |
-|:----------------|:------|:-----|
-| `albumin_terli_dayN` | Albumin use | yesno |
-| `albumintotal_terli_dayN` | Albumin grams | g |
-| `albuminvolume_terli_dayN` | Albumin volume | mL |
-| `mido_terli_dayN` | Midodrine use | yesno |
-| `mido_dose_terli_dayN` | Midodrine dose | mg |
-| `octreo_terli_dayN` | Octreotide use | yesno |
-| `octreo_dose_terli_dayN` | Octreotide dose | mcg |
-| `norepi_terli_dayN` | Norepinephrine use | yesno |
-| `norepi_dose_terli_dayN` | Norepinephrine dose | mcg |
+| Variable Pattern | Field Label | Type | Values / Unit |
+|:----------------|:-----------|:-----|:-------------|
+| `albumin_terli_dayN` | Albumin use? | binary | 1 = Yes, 0 = No |
+| `albumintotal_terli_dayN` | Total grams of albumin given for day N | text | grams |
+| `albuminvolume_terli_dayN` | Total volume of albumin for day N | text | mL |
+| `mido_terli_dayN` | Midodrine use while on terlipressin? | binary | 1 = Yes, 0 = No |
+| `mido_dose_terli_dayN` | Total dose midodrine for day N | text | mg |
+| `octreo_terli_dayN` | Octreotide use while on terlipressin? | binary | 1 = Yes, 0 = No |
+| `octreo_dose_terli_dayN` | Total octreotide dose for day N | text | mcg |
+| `norepi_terli_dayN` | Norepinephrine use while on terlipressin? | binary | 1 = Yes, 0 = No |
+| `norepi_dose_terli_dayN` | Total norepinephrine dose for day N | text | mcg |
 
 ### Vital Signs (per day, 4 time points)
 
-| Variable Pattern | Label | Unit |
-|:----------------|:------|:-----|
-| `tele_terli_dayN` | Continuous telemetry | yesno |
-| `temp_terli_dayN` | Temperature | celsius |
-| `hr_terli_dayN` | Heart rate | BPM |
-| `rr_terli_dayN` | Respiratory rate | -- |
-| `spo2_terli_dayN` | SpO2 | % |
-| `pao2_terli_dayN` | PaO2 | mmHg |
-| `fio2_terli_dayN` | FiO2 | % |
-| `sbp_terli_dayN_time{0-3}` | Systolic BP (0=midnight, 1=6AM, 2=noon, 3=6PM) | mmHg |
-| `dbp_terli_dayN_time{0-3}` | Diastolic BP | mmHg |
-| `map_terli_dayN_time{0-3}` | MAP | mmHg (calc) |
-| `total_volume_in_terli_dayN` | Volume input | mL |
-| `total_volume_out_terli_dayN` | Urine output/24h | mL |
+| Variable Pattern | Field Label | Type | Unit |
+|:----------------|:-----------|:-----|:-----|
+| `tele_terli_dayN` | Continuous telemetry | binary | 1 = Yes, 0 = No |
+| `pulseox_terli_dayN` | Continuous pulse oximetry | binary | 1 = Yes, 0 = No |
+| `temp_terli_dayN` | Temperature (pick closest value to terlipressin initiation time) | text | celsius |
+| `hr_terli_dayN` | Heart rate (pick closest value to terlipressin initiation time) | number | BPM (40--130) |
+| `rr_terli_dayN` | Respiratory rate (pick closest value to terlipressin initiation time) | text | |
+| `spo2_terli_dayN` | SpO2 (pick closest value to terlipressin initiation time) | number | % |
+| `pao2_terli_dayN` | PaO2 (convert SpO2 closest to terlipressin initiation time to PaO2) | number | mmHg |
+| `fio2_terli_dayN` | FiO2 (pick value associated with SpO2; room air is 0.21, add 0.04 for every L of nasal canula) | number | % |
+| `sbp_terli_dayN_time{0-3}` | Systolic BP (time 0 = midnight/0000, time 1 = 6AM/0600, time 2 = noon/1200, time 3 = 6PM/1800) | text | mmHg |
+| `dbp_terli_dayN_time{0-3}` | Diastolic BP (pick value associated with systolic BP above) | text | mmHg |
+| `map_terli_dayN_time{0-3}` | MAP | calculated | mmHg; `round((1/3)*SBP + (2/3)*DBP, 2)` |
+| `total_volume_in_terli_dayN` | Total volume input (mL) | text | mL |
+| `total_volume_out_terli_dayN` | Total urine output/24 hours (mL) | text | mL |
 
-### Daily Labs
+### Daily Labs (per day)
 
-| Variable Pattern | Label | Unit |
-|:----------------|:------|:-----|
-| `na_terli_dayN` | Serum sodium | mmol/L |
-| `k_terli_dayN` | Serum potassium | mmol/L |
-| `chloride_terli_dayN` | Chloride | mmol/L |
-| `bicarb_terli_dayN` | Bicarbonate | mmol/L |
-| `scr_terli_dayN` | Serum creatinine | mg/dL |
-| `cystatinc_terli_dayN` | Cystatin C | mg/L |
-| `bun_terli_dayN` | BUN | mg/dL |
-| `ast_terli_dayN` | AST | U/L |
-| `alt_terli_dayN` | ALT | U/L |
-| `bili_terli_dayN` | Total bilirubin | mg/dL |
-| `alb_terli_dayN` | Albumin | g/dL |
-| `inr_terli_dayN` | INR | -- |
-| `wbc_terli_dayN` | WBC | 10^9/L |
-| `hgb_terli_dayN` | Hemoglobin | g/dL |
-| `plt_terli_dayN` | Platelet count | 10^9/L |
-| `he_terli_dayN` | HE grade | radio: 0--4 |
+*Pick the value closest on day N of terlipressin.*
 
-### Clinical Details
+| Variable Pattern | Field Label | Type | Unit |
+|:----------------|:-----------|:-----|:-----|
+| `na_terli_dayN` | Serum sodium | number | mmol/L |
+| `k_terli_dayN` | Serum potassium | number | mmol/L |
+| `chloride_terli_dayN` | Serum chloride | text | mmol/L |
+| `bicarb_terli_dayN` | Serum bicarbonate | text | mmol/L |
+| `scr_terli_dayN` | Serum creatinine | number | mg/dL (Required on Day 0) |
+| `cystatinc_terli_dayN` | Cystatin C | number | mg/L |
+| `bun_terli_dayN` | BUN | number | mg/dL |
+| `ast_terli_dayN` | AST | text | U/L |
+| `alt_terli_dayN` | ALT | text | U/L |
+| `bili_terli_dayN` | Total bilirubin | number | mg/dL |
+| `alb_terli_dayN` | Serum albumin | number | g/dL |
+| `inr_terli_dayN` | INR | number | |
+| `wbc_terli_dayN` | Total WBC | number | 10^9/L |
+| `hgb_terli_dayN` | Hemoglobin | text | g/dL |
+| `plt_terli_dayN` | Platelet count | text | 10^9/L |
 
-| Variable Pattern | Label | Type |
-|:----------------|:------|:-----|
-| `location_terli_day0` | Location (Day 0) | radio: 1 = General ward, 2 = Step-down, 3 = ICU |
-| `diuretic_terli_dayN` | Diuretics used | yesno |
-| `para_terli_dayN` | Paracentesis | yesno |
-| `paravolume_terli_dayN` | Paracentesis volume | text (L) |
-| `infection_terli_dayN` | Infection treatment | yesno |
-| `typeinfection_terli_dayN` | Infection type | radio: 1 = Pneumonia, 2 = UTI, 3 = Bacteremia, 4 = SBP, 5 = Other |
+### Clinical Details (per day)
+
+| Variable Pattern | Field Label | Type | Values |
+|:----------------|:-----------|:-----|:-------|
+| `he_terli_dayN` | HE grade day N terlipressin | categorical | 0 = None, 1 = Grade 1, 2 = Grade 2, 3 = Grade 3, 4 = Grade 4 |
+| `location_terli_day0` | Location of terlipressin initiation? (Day 0 only) | categorical | 1 = General ward, 2 = Progressive care/step down unit, 3 = ICU |
+| `diuretic_terli_dayN` | Were diuretics used? | binary | 1 = Yes, 0 = No |
+| `para_terli_dayN` | Paracentesis? | binary | 1 = Yes, 0 = No |
+| `paravolume_terli_dayN` | If yes to paracentesis, how many liters? | text | liters |
+| `infection_terli_dayN` | Treatment of infection? | binary | 1 = Yes, 0 = No |
+| `typeinfection_terli_dayN` | If yes for treatment of infection, what kind of infection? | categorical | 1 = Pneumonia, 2 = UTI, 3 = Bacteremia, 4 = SBP, 5 = Other |
+| `ltlisting_terli_day0` | Listed for Liver Transplantation? (Day 0 only) | categorical | 0 = No, 1 = Yes, 2 = No, in evaluation |
 
 ## HRS-AKI Clinical Course {#hrs-clinical-course}
 
-### Post-Discontinuation SCr
+### Creatinine Post Terlipressin Discontinuation
 
-| Variable | Label | Unit |
-|:---------|:------|:-----|
-| `scr_day1_post_terli` -- `scr_day14_post_terli` | SCr 1--14 days after terli discontinuation | mg/dL |
+| Variable | Field Label | Type | Unit |
+|:---------|:-----------|:-----|:-----|
+| `scr_day1_post_terli` | Serum creatinine 1 day from terlipressin discontinuation | text | mg/dL |
+| `scr_day2_post_terli` | Serum creatinine 2 days from terlipressin discontinuation | text | mg/dL |
+| `scr_day3_post_terli` | Serum creatinine 3 days from terlipressin discontinuation | text | mg/dL |
+| `scr_day4_post_terli` -- `scr_day14_post_terli` | Serum creatinine 4--14 days from terlipressin discontinuation | text | mg/dL |
 
-### HRS Reversal & Recovery
+### HRS-AKI Reversal and HRS Recovery
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 1531 | `hrsreversal` | HRS reversal (SCr < 1.5) | yesno | 1/0 |
-| 1534 | `hrsrecovery` | HRS response | radio | 0 = No response, 1 = Partial, 2 = Complete |
-| 1537 | `recurrentaki` | Recurrent AKI after recovery | yesno | 1/0 |
-| 1543 | `retreatment_terli` | Retreated with terlipressin | yesno | 1/0 |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 1531 | `hrsreversal` | HRS reversal? Definition: serum creatinine < 1.5 mg/dL | binary | 1 = Yes, 0 = No |
+| 1534 | `hrsrecovery` | HRS response during hospitalization? | categorical | 0 = No response, 1 = Partial (decrease in AKI stage but Scr >0.3 mg/dL above baseline), 2 = Complete (serum creatinine < 0.3 mg/dL of baseline) |
 
-### Nadir/Peak SCr
+### Recurrent AKI
 
-| # | Variable | Label | Unit |
-|--:|:---------|:------|:-----|
-| 1547 | `nadirhospit_scr` | Nadir SCr during hospitalization | mg/dL |
-| 1550 | `peakhospit_scr` | Peak SCr during hospitalization | mg/dL |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 1537 | `recurrentaki` | Recurrent AKI during hospitalization after HRS recovery? (ADQI definition: meeting AKI criteria >0.3 mg/dL increase in serum creatinine within 48 hours or >1.5x increase within 7 days, after a minimum of 48 hours from HRS recovery) | binary | 1 = Yes, 0 = No |
+| 1543 | `retreatment_terli` | Retreated with terlipressin? | binary | 1 = Yes, 0 = No |
+
+### Nadir and Peak Serum Creatinine During Hospitalization
+
+| # | Variable | Field Label | Type | Unit |
+|--:|:---------|:-----------|:-----|:-----|
+| 1547 | `nadirhospit_scr` | Nadir serum creatinine during hospitalization | text | mg/dL |
+| 1550 | `peakhospit_scr` | Peak serum creatinine during hospitalization | text | mg/dL |
 
 ### Renal Replacement Therapy
 
-| # | Variable | Label | Type | Values |
-|--:|:---------|:------|:-----|:-------|
-| 1553 | `rrt` | RRT | radio | 0 = No, 1 = Yes, 2 = Need but not candidate |
-| 1554 | `rrt_modality` | RRT modality | radio | 1 = Intermittent, 2 = Continuous |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| 1553 | `rrt` | Renal replacement therapy? | categorical | 0 = No, 1 = Yes, 2 = Need for RRT, but not a candidate |
+| 1554 | `rrt_modality` | What was the modality of renal replacement therapy? | categorical | 1 = Intermittent, 2 = Continuous |
+| 1555 | `rrt_continuous` | Was renal replacement therapy continuous? | categorical | |
 
 ## Hospitalization Course {#hospitalization}
 
-| Variable | Label | Type | Values |
-|:---------|:------|:-----|:-------|
-| `lt_during_hospital` | LT during hospitalization | yesno | 1/0 |
-| `slkt_during_hospital` | SLKT during hospitalization | yesno | 1/0 |
-| `days_to_lt` | Days admission to LT | calc | |
-| `hd_discharge` | HD at discharge | radio | |
-| `disposition` | Discharge disposition | radio | 1 = Home, 2 = SNF, 3 = Rehab, 4 = Other, 5 = Death |
-| `days_to_discharge` | Days admission to discharge | calc | |
-| `lt_eval` | LT evaluation | radio | |
-| `lteval_listingstatus` | LT listing status | radio | |
+| # | Variable | Field Label | Type | Values |
+|--:|:---------|:-----------|:-----|:-------|
+| -- | `lt_during_hospital` | Liver transplant during hospitalization? | binary | 1 = Yes, 0 = No |
+| -- | `slkt_during_hospital` | Simultaneous liver-kidney transplant during hospitalization? | binary | 1 = Yes, 0 = No |
+| -- | `days_to_lt` | Days from admission to liver transplant | calculated | |
+| -- | `hd_discharge` | Hemodialysis at time of discharge? | categorical | |
+| -- | `disposition` | Discharge disposition | categorical | 1 = Home, 2 = Skilled Nursing Facility, 3 = Rehabilitation, 4 = Other facility, 5 = Death |
+| -- | `days_to_discharge` | Days from admission to discharge | calculated | |
+| -- | `lt_eval` | Liver transplant evaluation status | categorical | |
+| -- | `lteval_listingstatus` | Liver transplant listing status | categorical | |
 
 ## Follow-Up {#followup}
 
-| Variable | Label | Type | Values |
-|:---------|:------|:-----|:-------|
-| `dc_death_90days` | Death within 90 days | radio | 0 = No, 1 = Yes, 2 = Lost to follow-up |
-| `dc_days_to_death` | Days discharge to death | number | |
-| `dc_days_lastencounter` | Days discharge to last encounter | number | |
-| `days_to_lost_to_followup` | Days to lost to follow-up | number | |
-| `dc_lt_90days` | LT within 90 days | radio | 0 = No, 1 = LT, 2 = SLKT |
-| `dc_hd_status` | HD status at follow-up | radio | |
-| `dc_terli_use` | Terlipressin re-use | yesno | 1/0 |
-| `dc_aki_recurrence` | AKI recurrence | yesno | 1/0 |
-| `dc_scr30_value` | SCr at 30 days | text | mg/dL |
-| `dc_scr60_value` | SCr at 60 days | text | mg/dL |
-| `dc_scr90_value` | SCr at 90 days | text | mg/dL |
-| `dc_albumin` | Albumin at follow-up | text | |
+### 90-Day Follow-Up
+
+| Variable | Field Label | Type | Values |
+|:---------|:-----------|:-----|:-------|
+| `dc_death_90days` | Death within 90 days of discharge? | categorical | 0 = No, 1 = Yes, 2 = Lost to follow-up |
+| `dc_days_to_death` | Days from discharge to death | number | |
+| `dc_days_lastencounter` | Days from discharge to last encounter | number | |
+| `days_to_lost_to_followup` | Days from discharge to lost to follow-up | number | |
+| `dc_lt_90days` | Liver transplant within 90 days of discharge? | categorical | 0 = No, 1 = Liver transplant, 2 = Simultaneous liver-kidney transplant |
+| `dc_hd_status` | Hemodialysis status at follow-up | categorical | |
+| `dc_terli_use` | Terlipressin re-use after discharge? | binary | 1 = Yes, 0 = No |
+| `dc_aki_recurrence` | AKI recurrence after discharge? | binary | 1 = Yes, 0 = No |
+| `dc_aki_recurrence_eitology` | Etiology of AKI recurrence | categorical | |
+
+### Follow-Up Lab Values
+
+| Variable | Field Label | Type | Unit |
+|:---------|:-----------|:-----|:-----|
+| `dc_scr30_value` | Serum creatinine at 30 days post-discharge | text | mg/dL |
+| `dc_scr60_value` | Serum creatinine at 60 days post-discharge | text | mg/dL |
+| `dc_scr90_value` | Serum creatinine at 90 days post-discharge | text | mg/dL |
+| `dc_albumin` | Albumin at follow-up | text | g/dL |
 | `dc_inr` | INR at follow-up | text | |
-| `dc_scr` | SCr at follow-up | text | |
-| `dc_sna` | Sodium at follow-up | text | |
-| `dc_tbili` | Bilirubin at follow-up | text | |
-| `vital_status_1yr` | Vital status at 1 year | radio | |
-| `hd_status_1yr` | HD at 1 year | radio | |
-| `scr_value_1yr` | SCr at 1 year | text | |
-| `lt_status_1yr` | LT status at 1 year | radio | |
-| `lt_type_1yr` | LT type | radio | |
-| `days_to_lt_1yr` | Days to LT | calc | |
-| `tips_1yr` | TIPS at 1 year | radio | |
+| `dc_scr` | Serum creatinine at follow-up | text | mg/dL |
+| `dc_sna` | Serum sodium at follow-up | text | mmol/L |
+| `dc_tbili` | Total bilirubin at follow-up | text | mg/dL |
+
+### 1-Year Follow-Up
+
+| Variable | Field Label | Type | Values |
+|:---------|:-----------|:-----|:-------|
+| `vital_status_1yr` | Vital status at 1 year | categorical | |
+| `hd_status_1yr` | Hemodialysis status at 1 year | categorical | |
+| `scr_value_1yr` | Serum creatinine at 1 year | text | mg/dL |
+| `lt_status_1yr` | Liver transplant status at 1 year | categorical | |
+| `lt_type_1yr` | Liver transplant type at 1 year | categorical | |
+| `days_to_lt_1yr` | Days from discharge to liver transplant | calculated | |
+| `tips_1yr` | TIPS within 1 year? | categorical | |
+| `tips_1yr_indication` | Indication for TIPS | categorical | |

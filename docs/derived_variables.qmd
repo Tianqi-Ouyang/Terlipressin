@@ -118,28 +118,58 @@ All variables computed in `Tables.Rmd` (and replicated in `revision 0311.Rmd`) f
 
 ### Survival / Competing Risk
 
+#### Intermediate Variables
+
 | Variable | Description | Logic |
 |:---------|:-----------|:------|
-| `dc_death_status` | In-hospital death | `disposition == 5` |
-| `after_discharge_90days_death_status` | Post-discharge death | `dc_death_90days == 1` |
-| `time_to_death` | Time to death from terli initiation | In-hospital: `days_to_discharge`; post-discharge: `days_to_discharge + dc_days_to_death`; lost: `+ days_to_lost_to_followup`; minus `days_to_terli_initiation_day0` |
-| `time_to_death_status` | Binary death | 1 = died, 0 = alive |
-| `time_to_death_90days` | Time capped at 90 days | `min(time_to_death, 90)` |
-| `time_to_death_status_90days` | 90-day death status | 1 if died &le; 90 days |
-| `time_to_death_90days_cmp` | **Competing risk time** | `min(time_to_death_90days, time_to_transplant_90days)` |
-| `time_to_death_status_90days_cmp` | **Competing risk status** | 0 = Censored, 1 = Death, 2 = Transplant |
+| `dc_death_status` | In-hospital death | 1 if `disposition == 5`, else 0 |
+| `after_discharge_90days_death_status` | Died within 90 days post-discharge | 1 if `dc_death_90days == 1`, else 0 |
+| `time_to_death` | Days from terlipressin initiation to death or censoring | In-hospital death: `days_to_discharge`; post-discharge death: `days_to_discharge + dc_days_to_death`; lost to follow-up: `days_to_discharge + days_to_lost_to_followup`; alive at 90 days: `days_to_discharge + 90` (intentional censoring). All minus `days_to_terli_initiation_day0` |
+| `time_to_death_status` | Overall death indicator | 1 = died (in-hospital or post-discharge within 90 days), 0 = alive or lost to follow-up |
+
+#### 90-Day Death Outcomes
+
+| Variable | Description | Values | Logic |
+|:---------|:-----------|:-------|:------|
+| `time_to_death_90days` | Follow-up time for 90-day death analysis (days) | 0--90 | `min(time_to_death, 90)` -- all follow-up capped at 90 days |
+| `time_to_death_status_90days` | 90-day death event indicator | **1** = died within 90 days; **0** = alive at 90 days, OR died after 90 days (censored at 90), OR lost to follow-up | 1 only if `time_to_death_status == 1` AND `time_to_death <= 90`; all other patients get 0 |
+
+#### 90-Day Transplant Outcomes
+
+| Variable | Description | Values | Logic |
+|:---------|:-----------|:-------|:------|
+| `time_to_transplant_90days` | Follow-up time for 90-day transplant analysis (days) | 0--90 | `min(time_to_transplant_cmp, 90)` |
+| `time_to_transplant_status_90days` | 90-day transplant event indicator | **2** = transplanted within 90 days; **0** = not transplanted within 90 days, OR transplanted after 90 days (censored at 90) | 2 only if `transplant_lt_status == 2` AND `time_to_transplant_cmp <= 90`; all other patients get 0 |
+
+#### 90-Day Competing Risk (Death vs. Transplant)
+
+| Variable | Description | Values | Logic |
+|:---------|:-----------|:-------|:------|
+| `time_to_death_90days_cmp` | Competing risk follow-up time (days) | 0--90 | `min(time_to_death_90days, time_to_transplant_90days)` -- whichever event came first |
+| `time_to_death_status_90days_cmp` | Competing risk event indicator | **0** = censored (alive, no transplant within 90 days); **1** = death within 90 days (death came first or tied); **2** = transplant within 90 days (transplant came first) | If death time &le; transplant time: use death status; if transplant time < death time: use transplant status |
+
+::: {.callout-note collapse="true"}
+## How the competing risk status works
+
+- **Patient dies day 30, no transplant:** `time = 30`, `status = 1` (death)
+- **Patient transplanted day 20, alive at 90 days:** `time = 20`, `status = 2` (transplant)
+- **Patient alive at 90 days, no transplant:** `time = 90`, `status = 0` (censored)
+- **Patient dies day 50, transplanted day 40:** `time = 40`, `status = 2` (transplant came first)
+- **Patient died after 90 days:** `time = 90`, `status = 0` (censored -- death beyond window)
+- **Patient lost to follow-up day 60:** `time = 60`, `status = 0` (censored)
+:::
 
 ### Transplant
 
 | Variable | Description | Logic |
 |:---------|:-----------|:------|
-| `transplant_lt` | LT timing category | 1 = During hospitalization (LT or SLKT), 2 = Within 90d post-DC, 3 = After 90d (1yr), 0 = None |
-| `transplant_slkt` | SLKT indicator | `slkt_during_hospital == 1 OR dc_lt_90days == 2 OR lt_type_1yr == 2` |
-| `transplant_lt_status` | Binary transplant for competing risk | 0 or 2 |
-| `time_to_transplant` | Days from terli to transplant | |
-| `time_to_transplant_cmp` | Transplant time (999 if none) | |
-| `transplant_outcome` | 90-day transplant binary | |
-| `listed_transplant` | Listed for transplant | `lt_eval == 2 OR lteval_listingstatus == 1` |
+| `transplant_lt` | LT timing category | 1 = During hospitalization (LT or SLKT), 2 = Within 90 days post-discharge, 3 = After 90 days (within 1 year), 0 = No transplant |
+| `transplant_slkt` | Simultaneous liver-kidney transplant indicator | 1 if `slkt_during_hospital == 1` OR `dc_lt_90days == 2` OR `lt_type_1yr == 2`, else 0 |
+| `transplant_lt_status` | Transplant status for competing risk | 0 = no transplant, 2 = transplanted (coded as 2 for competing risk with death = 1) |
+| `time_to_transplant` | Days from terlipressin initiation to transplant | NA if no transplant |
+| `time_to_transplant_cmp` | Transplant time for competing risk (999 if no transplant) | 999 serves as a large censoring time so `pmin` with death time selects death |
+| `transplant_outcome` | Transplanted within 90 days (binary) | 1 if `time_to_transplant_status_90days == 2`, else 0 |
+| `listed_transplant` | Listed for liver transplant | 1 if `lt_eval == 2` OR `lteval_listingstatus == 1`, else 0 |
 
 ## Treatment Course Variables
 
@@ -204,13 +234,12 @@ All variables computed in `Tables.Rmd` (and replicated in `revision 0311.Rmd`) f
 | **Sodium** | `sodium_admit` | `sodium_aki` | `na_terli_day0`--`13` | -- | `dc_sna` |
 | **Cystatin C** | `cystatinc_admit` | `cystatinc_aki` | `cystatinc_terli_day0`--`13` | -- | -- |
 
-## Multiple Imputation (new_request_0311)
+## Multiple Imputation (revision 0311)
 
-Predictive mean matching (PMM), m=20 imputations, 50 iterations.
+Predictive mean matching (PMM), m=10 imputations, 50 iterations, seed=12345.
 
-**Imputed predictors:** `sex_male`, `scr_admit`, `tbili_admit`, `sodium_admit`, `inr_admit`, `bili_terli_day0`, `he_terli_day0`, `inr_terli_day0`, `map_terli_day0_time0`, `fio2_terli_day0`, `spo2_terli_day0`, `scr_terli_day0`
+**Imputed predictors:** `sex_male`, `scr_admit`, `tbili_admit`, `sodium_admit`, `inr_admit`, `albumin_admit`, `bili_terli_day0`, `he_terli_day0`, `inr_terli_day0`, `map_terli_day0_time0`, `fio2_terli_day0`, `spo2_terli_day0`, `scr_terli_day0`, `wbc_terli_day0`
 
-**Models fit:**
+**Post-imputation:** Clinical scores (CLIF-C, ACLF grade, Child-Pugh, MELD) are recomputed on each imputed dataset.
 
-- Logistic regression: `HRS_reversal_new ~ predictors` (pooled with Rubin's rules)
-- Fine-Gray competing risk: `Surv(time_to_death_90days_cmp, status) ~ predictors` (failcode=1 death, cencode=0)
+**Models fit:** Fine-Gray competing risk models pooled with Rubin's rules via `run_pooled_fg()`, stratified by HRS criteria, transplant listing status, and other subgroups.
