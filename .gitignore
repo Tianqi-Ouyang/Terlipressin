@@ -8,7 +8,6 @@
 *.Rproj
 
 # Quarto
-docs/_site/
 docs/.quarto/
 *_cache/
 *_files/

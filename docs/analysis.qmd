@@ -1,0 +1,450 @@
+---
+title: "Analysis"
+author: "Tianqi Ouyang"
+date: last-modified
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+This page contains all models and plots from the Terlipressin HARMONY project. Data is loaded from `data_summary.qmd` pipeline. All models use `final_master` as the analysis dataset.
+
+# Setup
+
+```{r libraries}
+library(tidyverse)
+library(tableone)
+library(gtsummary)
+library(survival)
+library(ggplot2)
+library(readxl)
+library(survminer)
+library(tidycmprsk)
+library(ggsurvfit)
+library(table1)
+
+final_master <- read_xlsx("/Users/to909/Desktop/Terlipressin projects/Terlipressin/data/final_master_01282026.xlsx")
+```
+
+```{r prep, include=FALSE}
+# Ensure factor types for key variables
+final_master <- final_master %>%
+  mutate(
+    time_to_death_status_90days = as.integer(time_to_death_status_90days),
+    time_to_death_status_90days_cmp = as.factor(time_to_death_status_90days_cmp),
+    time_to_transplant_status_90days_1 = ifelse(time_to_transplant_status_90days == 2, 1, 0),
+    HRS_reversal_new = as.factor(HRS_reversal_new),
+    hrs_responders = as.factor(hrs_responders),
+    hrs_responders_cat_2 = as.factor(hrs_responders_cat_2),
+    HRS_criteria_3 = as.factor(HRS_criteria_3),
+    listed_transplant = as.factor(listed_transplant)
+  ) %>%
+  drop_na(HRS_reversal_new, hrs_responders)
+```
+
+# Kaplan-Meier Survival Curves
+
+## 90-Day Survival by HRS Reversal
+
+```{r km-hrs-reversal, echo=FALSE, fig.height=6}
+fit <- survfit(Surv(time_to_death_90days, time_to_death_status_90days) ~ HRS_reversal_new,
+               data = final_master)
+
+ggsurvplot(fit, data = final_master, surv.scale = "percent",
+  pval = TRUE, pval.coord = c(75, 1), pval.size = 4,
+  conf.int = FALSE, xlim = c(0, 90), xlab = "Time (days)",
+  break.time.by = 30, tables.theme = theme_cleantable(),
+  risk.table = TRUE, risk.table.y.text.col = TRUE,
+  risk.table.y.text = TRUE, risk.table.fontsize = 4)
+```
+
+## 90-Day Survival by HRS Response Category (3-level)
+
+```{r km-hrs-responders, echo=FALSE, fig.height=6}
+fit <- survfit(Surv(time_to_death_90days, time_to_death_status_90days) ~ hrs_responders,
+               data = final_master)
+
+ggsurvplot(fit, data = final_master, surv.scale = "percent",
+  pval = TRUE, pval.coord = c(75, 1), pval.size = 4,
+  conf.int = FALSE, xlim = c(0, 90), xlab = "Time (days)",
+  break.time.by = 30, tables.theme = theme_cleantable(),
+  risk.table = TRUE, risk.table.y.text.col = TRUE,
+  risk.table.y.text = TRUE, risk.table.fontsize = 4)
+```
+
+## 90-Day Survival by HRS Responder (Binary)
+
+```{r km-hrs-cat2, echo=FALSE, fig.height=6}
+fit <- survfit(Surv(time_to_death_90days, time_to_death_status_90days) ~ hrs_responders_cat_2,
+               data = final_master)
+
+ggsurvplot(fit, data = final_master, surv.scale = "percent",
+  pval = TRUE, pval.coord = c(75, 1), pval.size = 4,
+  conf.int = FALSE, xlim = c(0, 90), xlab = "Time (days)",
+  break.time.by = 30, tables.theme = theme_cleantable(),
+  risk.table = TRUE, risk.table.y.text.col = TRUE,
+  risk.table.y.text = TRUE, risk.table.fontsize = 4)
+```
+
+# Logistic Regression: 90-Day Mortality
+
+## Univariate -- HRS Reversal
+
+```{r logistic-uv-death-reversal, echo=FALSE}
+final_master %>%
+  select(HRS_reversal_new, age, race_2, hispanic, admit_meld_3, listed_transplant,
+         time_to_death_status_90days) %>%
+  tbl_uvregression(method = glm, method.args = list(family = binomial),
+    y = time_to_death_status_90days,
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Reversal
+
+```{r logistic-mv-death-reversal, echo=FALSE}
+glm(time_to_death_status_90days ~ HRS_reversal_new + age + race_2 + hispanic +
+      admit_meld_3 + listed_transplant,
+    family = binomial, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Univariate -- HRS Responder (Binary)
+
+```{r logistic-uv-death-cat2, echo=FALSE}
+final_master %>%
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3, listed_transplant,
+         time_to_death_status_90days) %>%
+  tbl_uvregression(method = glm, method.args = list(family = binomial),
+    y = time_to_death_status_90days,
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Responder (Binary)
+
+```{r logistic-mv-death-cat2, echo=FALSE}
+glm(time_to_death_status_90days ~ hrs_responders_cat_2 + age + race_2 + hispanic +
+      admit_meld_3 + listed_transplant,
+    family = binomial, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+# Logistic Regression: 90-Day Transplant
+
+## Univariate -- HRS Reversal
+
+```{r logistic-uv-tx-reversal, echo=FALSE}
+final_master %>%
+  select(HRS_reversal_new, age, race_2, hispanic, admit_meld_3, transplant_outcome) %>%
+  tbl_uvregression(method = glm, method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Reversal
+
+```{r logistic-mv-tx-reversal, echo=FALSE}
+glm(transplant_outcome ~ HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+    family = binomial, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Univariate -- HRS Responder (Binary)
+
+```{r logistic-uv-tx-cat2, echo=FALSE}
+final_master %>%
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3, transplant_outcome) %>%
+  tbl_uvregression(method = glm, method.args = list(family = binomial),
+    y = transplant_outcome,
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Responder (Binary)
+
+```{r logistic-mv-tx-cat2, echo=FALSE}
+glm(transplant_outcome ~ hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+    family = binomial, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Transplant -- Listed Patients Only (HRS Reversal)
+
+```{r logistic-tx-listed-reversal, echo=FALSE}
+glm(transplant_outcome ~ HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+    family = binomial, data = final_master %>% filter(listed_transplant == 1)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Transplant -- Listed Patients Only (HRS Responder)
+
+```{r logistic-tx-listed-cat2, echo=FALSE}
+glm(transplant_outcome ~ hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+    family = binomial, data = final_master %>% filter(listed_transplant == 1)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+# Cox Proportional Hazards: 90-Day Mortality
+
+## Univariate -- HRS Reversal
+
+```{r cox-uv-reversal, echo=FALSE}
+final_master %>% filter(time_to_death_90days >= 0) %>%
+  select(HRS_reversal_new, age, race_2, hispanic, admit_meld_3, listed_transplant,
+         time_to_death_90days, time_to_death_status_90days) %>%
+  tbl_uvregression(method = coxph,
+    y = Surv(time_to_death_90days, time_to_death_status_90days),
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Reversal
+
+```{r cox-mv-reversal, echo=FALSE}
+coxph(Surv(time_to_death_90days, time_to_death_status_90days) ~
+        HRS_reversal_new + age + race_2 + hispanic + admit_meld_3 + listed_transplant,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Univariate -- HRS Responder (Binary)
+
+```{r cox-uv-cat2, echo=FALSE}
+final_master %>%
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3, listed_transplant,
+         time_to_death_90days, time_to_death_status_90days) %>%
+  tbl_uvregression(method = coxph,
+    y = Surv(time_to_death_90days, time_to_death_status_90days),
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Responder (Binary)
+
+```{r cox-mv-cat2, echo=FALSE}
+coxph(Surv(time_to_death_90days, time_to_death_status_90days) ~
+        hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3 + listed_transplant,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+# Cox Proportional Hazards: 90-Day Transplant
+
+## Multivariate -- HRS Reversal
+
+```{r cox-tx-reversal, echo=FALSE}
+coxph(Surv(time_to_transplant_90days, time_to_transplant_status_90days_1) ~
+        HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Multivariate -- HRS Responder (Binary)
+
+```{r cox-tx-cat2, echo=FALSE}
+coxph(Surv(time_to_transplant_90days, time_to_transplant_status_90days_1) ~
+        hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+      data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+# Fine-Gray Competing Risk: 90-Day (Death vs. Transplant)
+
+## All Patients
+
+### Univariate -- HRS Responder (failcode=1: Death)
+
+```{r fg-uv-cat2-death, echo=FALSE}
+final_master %>%
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3,
+         time_to_death_90days_cmp, time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(method = tidycmprsk::crr,
+    method.args = list(failcode = 1, cencode = 0),
+    y = Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE)
+```
+
+### Multivariate -- HRS Responder (failcode=1: Death)
+
+```{r fg-mv-cat2-death, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1, cencode = 0, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Univariate -- HRS Responder (failcode=2: Transplant)
+
+```{r fg-uv-cat2-tx, echo=FALSE}
+final_master %>%
+  select(hrs_responders_cat_2, age, race_2, hispanic, admit_meld_3,
+         time_to_death_90days_cmp, time_to_death_status_90days_cmp) %>%
+  tbl_uvregression(method = tidycmprsk::crr,
+    method.args = list(failcode = 2, cencode = 0),
+    y = Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp),
+    pvalue_fun = ~style_pvalue(.x, digits = 3), exponentiate = TRUE) %>%
+  bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Responder (failcode=2: Transplant)
+
+```{r fg-mv-cat2-tx, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+  failcode = 2, cencode = 0, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Reversal (failcode=1: Death)
+
+```{r fg-mv-reversal-death, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1, cencode = 0, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Reversal (failcode=2: Transplant)
+
+```{r fg-mv-reversal-tx, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 2, cencode = 0, data = final_master) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Subgroup: Futility Criteria Met (HRS_criteria_3 == 1)
+
+### Multivariate -- HRS Responder (failcode=1: Death)
+
+```{r fg-criteria1-cat2-death, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1, cencode = 0,
+  data = final_master %>% filter(HRS_criteria_3 == 1)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Reversal (failcode=1: Death)
+
+```{r fg-criteria1-reversal-death, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1, cencode = 0,
+  data = final_master %>% filter(HRS_criteria_3 == 1)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Subgroup: Futility Criteria Not Met (HRS_criteria_3 == 0)
+
+### Multivariate -- HRS Responder (failcode=1: Death)
+
+```{r fg-criteria0-cat2-death, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1, cencode = 0,
+  data = final_master %>% filter(HRS_criteria_3 == 0)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Reversal (failcode=1: Death)
+
+```{r fg-criteria0-reversal-death, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1, cencode = 0,
+  data = final_master %>% filter(HRS_criteria_3 == 0)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Subgroup: Listed for Transplant
+
+### Multivariate -- HRS Responder (failcode=2: Transplant)
+
+```{r fg-listed-cat2-tx, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+  failcode = 2, cencode = 0,
+  data = final_master %>% filter(listed_transplant == 1)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Reversal (failcode=2: Transplant)
+
+```{r fg-listed-reversal-tx, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 2, cencode = 0,
+  data = final_master %>% filter(listed_transplant == 1)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+## Subgroup: Not Listed for Transplant
+
+### Multivariate -- HRS Responder (failcode=2: Transplant)
+
+```{r fg-notlisted-cat2-tx, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  hrs_responders_cat_2 + age + race_2 + hispanic + admit_meld_3,
+  failcode = 2, cencode = 0,
+  data = final_master %>% filter(listed_transplant == 0)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+### Multivariate -- HRS Reversal (failcode=2: Transplant)
+
+```{r fg-notlisted-reversal-tx, echo=FALSE}
+tidycmprsk::crr(Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+  HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 2, cencode = 0,
+  data = final_master %>% filter(listed_transplant == 0)) %>%
+  tbl_regression(exp = TRUE) %>% add_n() %>% bold_p(0.05) %>% bold_labels()
+```
+
+# Cross-Tabulations
+
+## SCr Category by HRS Reversal
+
+```{r crosstab-scr-reversal, echo=FALSE}
+final_master %>%
+  mutate(scr_category = cut(scr_terli_day0,
+    breaks = c(-Inf, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, Inf),
+    labels = c("<1.5", "1.5-2", "2-2.5", "2.5-3", "3-3.5", "3.5-4", "4-4.5", "4.5-5", ">5"),
+    right = FALSE)) %>%
+  count(scr_category, HRS_reversal_new) %>%
+  pivot_wider(names_from = HRS_reversal_new, values_from = n, values_fill = 0) %>%
+  knitr::kable(caption = "SCr Category at Day 0 vs HRS Reversal")
+```
+
+## MELD 3.0 Quintiles by HRS Reversal
+
+```{r crosstab-meld-reversal, echo=FALSE}
+final_master %>% drop_na(admit_meld_3_raw) %>%
+  mutate(meld_quintile = cut(admit_meld_3_raw,
+    breaks = quantile(admit_meld_3_raw, probs = seq(0, 1, 0.2), na.rm = TRUE),
+    include.lowest = TRUE, labels = paste0("Q", 1:5))) %>%
+  count(meld_quintile, HRS_reversal_new) %>%
+  pivot_wider(names_from = HRS_reversal_new, values_from = n, values_fill = 0) %>%
+  knitr::kable(caption = "MELD 3.0 Quintile vs HRS Reversal")
+```
+
+# AE Summary by Discontinuation Day
+
+```{r ae-discont-day, echo=FALSE}
+ae_vars <- c("any_ae", "terli_ae_abdpain", "terli_ae_nausea", "terli_ae_diarrhea",
+             "terli_ae_volover", "terli_ae_brady", "terli_7", "terli_8", "terli_ae_respfail")
+
+map_dfr(ae_vars, function(var) {
+  final_master %>%
+    filter(.data[[var]] == 1) %>%
+    summarise(
+      AE = var,
+      N = n(),
+      Q1 = quantile(Discont_Day, 0.25, na.rm = TRUE),
+      Median = median(Discont_Day, na.rm = TRUE),
+      Q3 = quantile(Discont_Day, 0.75, na.rm = TRUE))
+}) %>% knitr::kable(caption = "Discontinuation Day by AE Type (among those with AE)")
+```

@@ -14,10 +14,14 @@ website:
         text: REDCap Variables
       - href: derived_variables.qmd
         text: Derived Variables
-      - href: data_summary.qmd
-        text: Data Summary
-      - href: bug_audit.qmd
-        text: Code Check
+      - href: example.qmd
+        text: Example
+      # - href: data_summary.qmd
+      #   text: Data Summary
+      # - href: analysis.qmd
+      #   text: Analysis
+      # - href: bug_audit.qmd
+      #   text: Code Check
 
 format:
   html:

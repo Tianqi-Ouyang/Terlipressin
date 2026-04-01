@@ -1,0 +1,91 @@
+---
+title: "Example"
+author: "Tianqi Ouyang"
+date: last-modified
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(gtsummary)
+library(survival)
+library(survminer)
+library(tidycmprsk)
+library(ggsurvfit)
+library(readxl)
+
+final_master <- read_xlsx("/Users/to909/Desktop/Terlipressin projects/Terlipressin/data/final_master_01282026.xlsx")
+
+final_master <- final_master %>%
+  mutate(
+    time_to_death_status_90days = as.integer(time_to_death_status_90days),
+    time_to_death_status_90days_cmp = as.factor(time_to_death_status_90days_cmp),
+    HRS_reversal_new = as.factor(HRS_reversal_new),
+    hrs_responders_cat_2 = as.factor(hrs_responders_cat_2)
+  ) %>%
+  drop_na(HRS_reversal_new, hrs_responders)
+```
+
+# Kaplan-Meier: 90-Day Survival by HRS Reversal
+
+```{r km-plot, fig.height=6}
+fit <- survfit(
+  Surv(time_to_death_90days, time_to_death_status_90days) ~ HRS_reversal_new,
+  data = final_master
+)
+
+ggsurvplot(
+  fit,
+  data = final_master,
+  surv.scale = "percent",
+  pval = TRUE,
+  pval.coord = c(75, 1),
+  pval.size = 4,
+  conf.int = FALSE,
+  xlim = c(0, 90),
+  xlab = "Time (days)",
+  break.time.by = 30,
+  tables.theme = theme_cleantable(),
+  risk.table = TRUE,
+  risk.table.y.text.col = TRUE,
+  risk.table.y.text = TRUE,
+  risk.table.fontsize = 4
+)
+```
+
+# Logistic Regression: 90-Day Mortality
+
+Multivariate logistic regression with HRS reversal as primary exposure, adjusted for age, race, ethnicity, MELD 3.0, and transplant listing status.
+
+```{r logistic-model}
+model_logistic <- glm(
+  time_to_death_status_90days ~
+    HRS_reversal_new + age + race_2 + hispanic + admit_meld_3 + listed_transplant,
+  family = binomial,
+  data = final_master
+)
+
+tbl_regression(model_logistic, exponentiate = TRUE) %>%
+  add_n() %>%
+  bold_p(0.05) %>%
+  bold_labels()
+```
+
+# Fine-Gray Competing Risk: 90-Day Mortality (Death vs. Transplant)
+
+Multivariate Fine-Gray competing risk model. Death (`failcode = 1`) is the event of interest; transplant (`failcode = 2`) is the competing event; `cencode = 0` is censored.
+
+```{r fine-gray-model}
+model_fg <- tidycmprsk::crr(
+  Surv(time_to_death_90days_cmp, time_to_death_status_90days_cmp) ~
+    HRS_reversal_new + age + race_2 + hispanic + admit_meld_3,
+  failcode = 1,
+  cencode = 0,
+  data = final_master
+)
+
+tbl_regression(model_fg, exponentiate = TRUE) %>%
+  add_n() %>%
+  bold_p(0.05) %>%
+  bold_labels()
+```
